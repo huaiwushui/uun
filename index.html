@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<!--★1 深色状态栏修复-->
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#F5EFE6">
+<title>Feather</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+--bg:#F5EFE6;--bg2:#FEFCF6;--bg3:#ECDDC8;
+--tx:#2C2013;--tx2:#8A7A65;--tx3:#B89B82;
+--ac:#7D5A44;--ac2:#6B4D3A;--acl:#F0E5D8;
+--bd:#E3D8C8;--ubg:#ECDDC8;--abg:#FEFCF6;
+--sbbg:#EDE5D8;--thbg:#F0E8DC;--thbd:#E3D8C8;
+--card:#FEFCF6;--ibg:#FEFCF6;
+--sh:0 1px 3px rgba(0,0,0,.05);
+--sh2:0 4px 16px rgba(0,0,0,.08)
+}
+[data-theme="dark"]{
+--bg:#1C1814;--bg2:#262018;--bg3:#342C22;
+--tx:#E5DDD4;--tx2:#A89880;--tx3:#7A6E5E;
+--ac:#C49070;--ac2:#D4A080;--acl:#382C20;
+--bd:#3A3228;--ubg:#382C20;--abg:#262018;
+--sbbg:#16120E;--thbg:#2C2518;--thbd:#3A3228;
+--card:#262018;--ibg:#2E2820;
+--sh:0 1px 3px rgba(0,0,0,.2);
+--sh2:0 4px 16px rgba(0,0,0,.3)
+}
+html,body{height:100%;overflow:hidden;position:fixed;width:100%}
+/*★1 body 用 header 色，状态栏透出来不出现色差*/
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg2);color:var(--tx);-webkit-text-size-adjust:100%}
+#app{display:flex;height:100%;position:relative;overflow:hidden}
+#main{flex:1;display:flex;flex-direction:column;height:100%;width:100%;overflow:hidden}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.3);z-index:90}
+#overlay.show{display:block}
+#sidebar{position:fixed;left:-300px;top:0;bottom:0;width:300px;background:var(--sbbg);z-index:100;transition:left .3s ease;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+#sidebar.open{left:0}
+.sb-hd{padding:16px}
+.new-btn{width:100%;padding:12px;background:var(--ac);color:#FFF;border:none;border-radius:10px;font-size:15px;cursor:pointer;transition:background .2s}
+.new-btn:active{background:var(--ac2)}
+.sb-list{flex:1;overflow-y:auto;padding:4px 8px}
+.sb-item{padding:12px;border-radius:10px;cursor:pointer;display:flex;align-items:center;margin-bottom:2px;font-size:14px;transition:background .15s;gap:4px}
+.sb-item:active,.sb-item.act{background:var(--acl)}
+.sb-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.sb-act{background:none;border:none;color:var(--tx3);cursor:pointer;padding:0 3px;opacity:0;font-size:14px;flex-shrink:0}
+.sb-item.act .sb-act{opacity:.5}
+.sb-item.act .sb-act:active{opacity:1}
+.sb-ft{padding:8px;border-top:1px solid var(--bd);padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+.sb-nav{display:flex;align-items:center;justify-content:center;padding:10px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--tx2);background:none;border:1px solid var(--bd);width:100%;text-align:center;transition:all .15s;margin-bottom:4px}
+.sb-nav:active{background:var(--acl);border-color:var(--tx3)}
+/*★2 顶栏压窄 48→40*/
+.hd{display:flex;align-items:center;padding:6px 12px;padding-top:calc(4px + env(safe-area-inset-top));background:var(--bg2);border-bottom:1px solid var(--bd);min-height:40px;flex-shrink:0}
+.ib{background:none;border:none;color:var(--tx);font-size:18px;cursor:pointer;padding:3px 5px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.hd-title{font-size:15px;font-weight:600;flex:1;text-align:center}
+.hd-acts{display:flex;align-items:center;gap:10px}
+.hd-save{background:none;border:none;color:var(--ac);font-size:15px;font-weight:600;cursor:pointer;padding:4px 8px}
+.view{display:none;flex-direction:column;height:100%;width:100%;overflow:hidden}
+.view.active{display:flex}
+.sbar{display:none;padding:6px 16px;background:var(--bg2);border-bottom:1px solid var(--bd);align-items:center;gap:8px;flex-shrink:0}
+.sbar.show{display:flex}
+.sbar input{flex:1;padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none}
+.sbar input:focus{border-color:var(--ac)}
+.scnt{font-size:11px;color:var(--tx3);white-space:nowrap}
+.chat-area{flex:1;overflow-y:auto;padding:16px;padding-bottom:8px;background:var(--bg);-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.chat-area.searching .msg{opacity:.2;transition:opacity .15s}
+.chat-area.searching .msg.hl{opacity:1}
+.msg{margin-bottom:14px;display:flex;flex-direction:column}
+.msg.u{align-items:flex-end}
+.msg.a{align-items:flex-start}
+.bub{max-width:82%;padding:10px 14px;border-radius:16px;font-size:15px;line-height:1.65;word-wrap:break-word;overflow-wrap:break-word}
+.msg.u .bub{background:var(--ubg);border-bottom-right-radius:4px}
+.msg.a .bub{background:var(--abg);border-bottom-left-radius:4px;box-shadow:var(--sh)}
+.ts{font-size:11px;color:var(--tx3);margin-top:3px;padding:0 4px;display:flex;align-items:center;gap:6px}
+.msg-edit{background:none;border:none;color:var(--tx3);font-size:11px;cursor:pointer;opacity:.6}
+.msg-edit:active{color:var(--ac);opacity:1}
+.mimg{max-width:200px;max-height:200px;border-radius:12px;margin-bottom:6px;display:block}
+.thk{margin-bottom:6px;border:1px solid var(--thbd);border-radius:10px;overflow:hidden;max-width:82%}
+.thk-hd{padding:7px 12px;background:var(--thbg);cursor:pointer;font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:6px;user-select:none;-webkit-user-select:none}
+.thk-bd{display:none;padding:10px 12px;background:var(--thbg);font-size:13px;line-height:1.6;color:var(--tx2);max-height:300px;overflow-y:auto;white-space:pre-wrap}
+.thk.open .thk-bd{display:block}
+.thk.open .ar{transform:rotate(90deg)}
+.ar{transition:transform .2s;display:inline-block;font-size:10px}
+.bub code{background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:13px;font-family:'SF Mono',Monaco,Consolas,monospace}
+.bub pre{background:var(--bg3);padding:10px;border-radius:8px;overflow-x:auto;margin:6px 0}
+.bub pre code{background:none;padding:0}
+.bub strong{font-weight:600}
+.bub em{font-style:italic}
+.typ-wrap{display:flex;align-items:center;gap:8px}
+.typ-label{font-size:13px;color:var(--tx3)}
+.typ{display:flex;gap:4px;padding:2px 0}
+.typ span{width:5px;height:5px;border-radius:50%;background:var(--tx3);animation:tb 1.4s infinite}
+.typ span:nth-child(2){animation-delay:.2s}
+.typ span:nth-child(3){animation-delay:.4s}
+@keyframes tb{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.empty{text-align:center;padding:60px 20px;color:var(--tx3)}
+.empty p{font-size:15px;margin-top:8px}
+#stopBtn{display:none;margin:8px auto;padding:6px 20px;background:var(--bg2);border:1px solid var(--bd);border-radius:20px;color:var(--tx2);font-size:13px;cursor:pointer}
+#stopBtn.show{display:block}
+.imgp{display:none;padding:8px 16px;background:var(--bg2);border-top:1px solid var(--bd);align-items:center;gap:8px;flex-shrink:0}
+.imgp.show{display:flex}
+.imgp img{width:56px;height:56px;object-fit:cover;border-radius:8px}
+.imgp button{background:none;border:none;color:var(--tx2);font-size:20px;cursor:pointer}
+.inp{padding:8px 12px;padding-bottom:calc(8px + env(safe-area-inset-bottom));background:var(--bg2);border-top:1px solid var(--bd);display:flex;align-items:flex-end;gap:8px;flex-shrink:0}
+.att{background:none;border:none;color:var(--tx3);font-size:22px;cursor:pointer;flex-shrink:0;width:36px;height:36px;display:flex;align-items:center;justify-content:center;transition:color .2s;position:relative;bottom:3px}
+.att:active{color:var(--ac)}
+#mi{flex:1;border:1px solid var(--bd);border-radius:20px;padding:8px 14px;font-size:16px;background:var(--ibg);color:var(--tx);resize:none;max-height:120px;min-height:36px;font-family:inherit;line-height:1.4;outline:none;transition:border-color .2s}
+#mi:focus{border-color:var(--ac)}
+#mi::placeholder{color:var(--tx3)}
+#sb{background:var(--ac);color:#FFF;border:none;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:opacity .2s}
+#sb:disabled{opacity:.35}
+.mem-area{flex:1;overflow-y:auto;padding:16px;background:var(--bg);-webkit-overflow-scrolling:touch}
+.search{margin-bottom:14px}
+.search input{width:100%;padding:10px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none;transition:border-color .2s}
+.search input:focus{border-color:var(--ac)}
+.search input::placeholder{color:var(--tx3)}
+.mem-list{display:flex;flex-direction:column;gap:10px}
+.mc{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;box-shadow:var(--sh);transition:border-color .2s}
+.mc.locked{border-left:3px solid var(--ac)}
+.mc-body{font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-bottom:10px;color:var(--tx)}
+.mc-ft{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tx3)}
+.mc-acts{display:flex;gap:10px}
+.mc-acts button{background:none;border:none;color:var(--ac);font-size:12px;cursor:pointer;padding:2px}
+.mc-acts button:disabled{opacity:.3;cursor:default}
+.mc-acts .lk{color:var(--tx2)}
+.mem-empty{text-align:center;padding:40px;color:var(--tx3);font-size:14px}
+.dia-area{flex:1;overflow-y:auto;padding:16px;background:var(--bg);-webkit-overflow-scrolling:touch}
+.dia-list{display:flex;flex-direction:column;gap:14px}
+.dc{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:16px;box-shadow:var(--sh)}
+.dc-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.dc-who{display:flex;align-items:center;gap:8px}
+.dc-name{font-size:14px;font-weight:600;color:var(--tx)}
+.dc-dot{width:6px;height:6px;border-radius:50%;background:var(--ac)}
+.dc-dot.me{background:var(--tx3)}
+.dc-time{font-size:11px;color:var(--tx3)}
+.dc-del{background:none;border:none;color:var(--tx3);font-size:16px;cursor:pointer;padding:0 4px;opacity:.4}
+.dc-del:active{opacity:1;color:#C44}
+.dc-body{font-size:15px;line-height:1.7;white-space:pre-wrap;word-break:break-word;color:var(--tx);margin-bottom:10px}
+.dc-img{width:100%;max-height:280px;object-fit:cover;border-radius:12px;margin-bottom:10px;display:block}
+.dc-cmts{border-top:1px solid var(--bd);padding-top:10px;margin-top:4px;display:flex;flex-direction:column;gap:8px}
+.cmt{display:flex;flex-direction:column;gap:2px;padding:8px 10px;background:var(--bg3);border-radius:10px}
+.cmt-hd{display:flex;align-items:center;gap:6px}
+.cmt-name{font-size:12px;font-weight:600;color:var(--ac)}
+.cmt-name.me{color:var(--tx2)}
+.cmt-time{font-size:10px;color:var(--tx3)}
+.cmt-body{font-size:13px;line-height:1.6;color:var(--tx);white-space:pre-wrap;word-break:break-word}
+.cmt-add{display:flex;gap:6px;margin-top:6px}
+.cmt-add input{flex:1;padding:7px 10px;border:1px solid var(--bd);border-radius:14px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none}
+.cmt-add input:focus{border-color:var(--ac)}
+.cmt-add button{background:var(--ac);color:#FFF;border:none;padding:0 14px;border-radius:14px;font-size:13px;cursor:pointer}
+.dia-empty{text-align:center;padding:60px 20px;color:var(--tx3);font-size:14px}
+.set-area{flex:1;overflow-y:auto;background:var(--bg);-webkit-overflow-scrolling:touch}
+.tabs{display:flex;background:var(--bg2);border-bottom:1px solid var(--bd);padding:0 8px;flex-shrink:0}
+.tab{flex:1;padding:12px 4px;background:none;border:none;color:var(--tx2);font-size:13px;cursor:pointer;border-bottom:2px solid transparent;transition:all .2s}
+.tab.act{color:var(--ac);border-bottom-color:var(--ac);font-weight:600}
+.tc{display:none;padding:20px 16px;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+.tc.act{display:block}
+.fld{margin-bottom:18px}
+.fld label{display:block;font-size:13px;color:var(--tx2);margin-bottom:5px;font-weight:500}
+.fld input,.fld textarea{width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;font-family:inherit;outline:none;transition:border-color .2s}
+.fld input:focus,.fld textarea:focus{border-color:var(--ac)}
+.fld textarea{min-height:100px;resize:vertical;line-height:1.5}
+.fld .hint{font-size:12px;color:var(--tx3);margin-top:4px}
+.tr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding:2px 0}
+.tr label{font-size:14px;color:var(--tx);margin:0}
+.tg{width:44px;height:24px;border-radius:12px;background:var(--bd);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tg.on{background:var(--ac)}
+.tg::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#FFF;top:2px;left:2px;transition:left .2s}
+.tg.on::after{left:22px}
+.dbtn{display:block;width:100%;padding:12px;border-radius:10px;font-size:14px;cursor:pointer;margin-bottom:8px;text-align:center;transition:all .15s}
+.dbtn-p{background:var(--ac);color:#FFF;border:none}
+.dbtn-s{background:none;color:var(--tx);border:1px solid var(--bd)}
+.dbtn-d{background:none;color:#C44;border:1px solid #C44;margin-top:16px}
+.modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.4);align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}
+.mdl{background:var(--card);border-radius:14px;padding:22px;width:100%;max-width:380px;box-shadow:var(--sh2);max-height:85vh;overflow-y:auto}
+.mdl h3{margin-bottom:14px;font-size:16px}
+.mdl textarea{width:100%;padding:12px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;font-family:inherit;min-height:120px;resize:vertical;outline:none;line-height:1.5}
+.mdl textarea:focus{border-color:var(--ac)}
+.mdl input[type=text]{width:100%;padding:12px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none}
+.mdl input[type=text]:focus{border-color:var(--ac)}
+.mdl-acts{display:flex;gap:8px;margin-top:14px}
+.mdl-acts button{flex:1;padding:10px;border-radius:10px;font-size:14px;cursor:pointer;border:none;transition:all .15s}
+.btn-p{background:var(--ac);color:#FFF}
+.btn-p:active{background:var(--ac2)}
+.btn-s{background:var(--bg3);color:var(--tx)}
+.dimgp{display:none;margin-top:10px;align-items:center;gap:8px}
+.dimgp.show{display:flex}
+.dimgp img{width:60px;height:60px;object-fit:cover;border-radius:8px}
+.dimgp button{background:none;border:none;color:var(--tx2);font-size:20px;cursor:pointer}
+.dadd{background:none;border:1px dashed var(--bd);color:var(--tx2);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;margin-top:10px;width:100%}
+#lock{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px}
+#lock input{width:200px;padding:12px 16px;border:1px solid var(--bd);border-radius:12px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none;text-align:center;letter-spacing:4px}
+#lock input:focus{border-color:var(--ac)}
+#lock button{padding:10px 32px;background:var(--ac);color:#FFF;border:none;border-radius:12px;font-size:14px;cursor:pointer}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="lock">
+<div style="font-size:14px;color:var(--tx3);letter-spacing:2px">Feather</div>
+<input type="password" id="lki" placeholder="······" inputmode="numeric">
+<button onclick="tryUnlock()">进入</button>
+<div id="lkerr" style="font-size:12px;color:#C44;height:16px"></div>
+</div>
+<div id="app">
+<div id="overlay" onclick="toggleSb()"></div>
+<aside id="sidebar">
+<div class="sb-hd"><button class="new-btn" onclick="newChat()">+ 新对话</button></div>
+<div class="sb-list" id="clist"></div>
+<div class="sb-ft">
+<button class="sb-nav" onclick="go('diary')">日记</button>
+<button class="sb-nav" onclick="go('memory')">记忆碎片</button>
+<button class="sb-nav" onclick="go('settings')">设置</button>
+</div>
+</aside>
+<main id="main">
+<div id="chatView" class="view active">
+<div class="hd">
+<button class="ib" onclick="toggleSb()">☰</button>
+<div class="hd-title"></div>
+<div class="hd-acts">
+<button class="ib" onclick="toggleSearch()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg></button>
+<button class="ib" id="tb" onclick="toggleTh()">☽</button>
+</div>
+</div>
+<div class="sbar" id="sbar">
+<input id="sinp" placeholder="搜索消息..." oninput="doSearch()">
+<span class="scnt" id="scnt"></span>
+<button onclick="toggleSearch()" style="background:none;border:none;color:var(--tx2);font-size:16px;cursor:pointer">×</button>
+</div>
+<div class="chat-area" id="ca"><div id="msgs"></div><button id="stopBtn" onclick="stopG()">停止生成</button></div>
+<div class="imgp" id="ip"><img id="pimg"><button onclick="rmImg()">×</button></div>
+<div class="inp">
+<button class="att" onclick="document.getElementById('fi').click()">+</button>
+<input type="file" id="fi" accept="image/*" onchange="hImg(event)" hidden>
+<textarea id="mi" placeholder="给Renn发消息..." rows="1" oninput="aH(this)"></textarea>
+<button id="sb" onclick="send()">↑</button>
+</div>
+</div>
+<div id="diaryView" class="view">
+<div class="hd">
+<button class="ib" onclick="go('chat')">←</button>
+<div class="hd-title">日记</div>
+<button class="ib" onclick="openDiaryModal()">+</button>
+</div>
+<div class="dia-area"><div id="dl" class="dia-list"></div></div>
+</div>
+<div id="memoryView" class="view">
+<div class="hd">
+<button class="ib" onclick="go('chat')">←</button>
+<div class="hd-title">记忆碎片</div>
+<button class="ib" onclick="addMem()">+</button>
+</div>
+<div class="mem-area">
+<div class="search"><input id="ms" placeholder="搜索记忆..." oninput="rMems()"></div>
+<div id="ml" class="mem-list"></div>
+</div>
+</div>
+<div id="settingsView" class="view">
+<div class="hd">
+<button class="ib" onclick="go('chat')">←</button>
+<div class="hd-title">设置</div>
+<button class="hd-save" onclick="saveS()">保存</button>
+</div>
+<div class="set-area">
+<div class="tabs">
+<button class="tab act" onclick="sTab(this,'t1')">服务</button>
+<button class="tab" onclick="sTab(this,'t2')">对话</button>
+<button class="tab" onclick="sTab(this,'t3')">记忆</button>
+<button class="tab" onclick="sTab(this,'t4')">数据</button>
+</div>
+<div id="t1" class="tc act">
+<!--★4 三项默认留空-->
+<div class="fld"><label>API Key</label><input type="password" id="sk" placeholder="sk-..."></div>
+<div class="fld"><label>API 地址</label><input id="su" placeholder="https://..../v1"></div>
+<div class="fld"><label>模型</label><input id="smo" placeholder="claude-sonnet-4-..."></div>
+<div class="fld"><div class="hint">三项都必须填写才能发送消息</div></div>
+</div>
+<div id="t2" class="tc">
+<div class="fld"><label>AI 昵称</label><input id="san" placeholder="Renn"></div>
+<div class="fld"><label>我的昵称</label><input id="sun" placeholder="小u"><div class="hint">显示在日记和评论里</div></div>
+<div class="fld"><label>System Prompt</label><textarea id="ss" rows="6" placeholder="可选"></textarea></div>
+<div class="tr"><label>启用思考链</label><div class="tg" id="stk" onclick="this.classList.toggle('on')"></div></div>
+<div class="fld"><label>思考预算 (tokens)</label><input type="number" id="sbd" value="10000"></div>
+<div class="fld"><label>最大输出 (tokens)</label><input type="number" id="smx" value="16000"></div>
+<div class="fld"><label>Temperature</label><input type="number" id="stemp" min="0" max="1" step="0.1" value="1"><div class="hint">0-1，越高越随机。启用思考链时固定为1</div></div>
+</div>
+<div id="t3" class="tc">
+<div class="tr"><label>在提示词中包含记忆</label><div class="tg on" id="sim" onclick="this.classList.toggle('on')"></div></div>
+<div class="tr"><label>包含当前时间</label><div class="tg on" id="sit" onclick="this.classList.toggle('on')"></div></div>
+<div class="tr"><label>允许AI管理记忆和日记</label><div class="tg on" id="stl" onclick="this.classList.toggle('on')"></div></div>
+<div class="fld"><label>最大记忆条数</label><input type="number" id="smm" value="0"><div class="hint">0 = 包含全部</div></div>
+<div class="fld"><label>日记上下文条数</label><input type="number" id="sdc" value="10"><div class="hint">塞进提示词的最近日记数量</div></div>
+</div>
+<div id="t4" class="tc">
+<p style="font-size:13px;color:var(--tx2);margin-bottom:16px">管理对话、日记、记忆和设置数据</p>
+<button class="dbtn dbtn-p" onclick="exportData(true)">导出数据（含 API Key）</button>
+<button class="dbtn dbtn-s" onclick="exportData(false)">导出数据（不含 Key）</button>
+<button class="dbtn dbtn-s" onclick="importData()">导入数据</button>
+<button class="dbtn dbtn-d" onclick="resetData()">重置所有数据</button>
+</div>
+</div>
+</div>
+</main>
+</div>
+<div class="modal" id="mm"><div class="mdl"><h3 id="mmt">添加记忆</h3><textarea id="mmi" placeholder="输入记忆内容..."></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('mm')">取消</button><button class="btn-p" onclick="saveMem()">保存</button></div></div></div>
+<div class="modal" id="emm"><div class="mdl"><h3>编辑消息</h3><textarea id="emmi" placeholder="编辑消息内容..."></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('emm')">取消</button><button class="btn-p" onclick="resendMsg()">重新发送</button></div></div></div>
+<div class="modal" id="tmm"><div class="mdl"><h3>编辑标题</h3><input type="text" id="tmi"><div class="mdl-acts"><button class="btn-s" onclick="closeMd('tmm')">取消</button><button class="btn-p" onclick="saveTitle()">保存</button></div></div></div>
+<div class="modal" id="dmm"><div class="mdl"><h3>写日记</h3><textarea id="dmi" placeholder="今天想说点什么..."></textarea><button class="dadd" onclick="document.getElementById('dfi').click()">+ 添加图片</button><input type="file" id="dfi" accept="image/*" onchange="hDiaryImg(event)" hidden><div class="dimgp" id="dip"><img id="dpimg"><button onclick="rmDiaryImg()">×</button></div><div class="mdl-acts"><button class="btn-s" onclick="closeMd('dmm')">取消</button><button class="btn-p" onclick="saveDiary()">发布</button></div></div></div>
+<script>
+const PASS='520720';
+/*★4 url/model 默认留空*/
+let S={convs:{},cur:null,sets:{key:'',url:'',model:'',sys:'',think:false,budget:10000,maxTok:16000,incMem:true,incTime:true,maxMem:0,aiName:'Renn',userName:'小u',temp:1,tools:true,diaryCtx:10},mems:[],diary:[],gen:false,ac:null,pimg:null,dpimg:null,emid:null,editIdx:null,titleId:null};
+const TOOLS=[
+{name:'create_memory',description:'创建一条新的记忆记录',input_schema:{type:'object',properties:{content:{type:'string',description:'记忆内容'}},required:['content']}},
+{name:'edit_memory',description:'更新已有的记忆记录',input_schema:{type:'object',properties:{id:{type:'integer'},content:{type:'string'}},required:['id','content']}},
+{name:'delete_memory',description:'删除一条记忆记录',input_schema:{type:'object',properties:{id:{type:'integer'}},required:['id']}},
+{name:'create_diary',description:'在日记模块发布一篇日记，会显示在共享的日记流里',input_schema:{type:'object',properties:{content:{type:'string',description:'日记内容'}},required:['content']}},
+{name:'add_comment',description:'在某篇日记下面添加评论',input_schema:{type:'object',properties:{diary_id:{type:'integer',description:'日记的id'},content:{type:'string',description:'评论内容'}},required:['diary_id','content']}}
+];
+function execTool(name,input){try{
+if(name==='create_memory'){if(!input.content)return'失败：内容为空';S.mems.push({content:input.content,locked:false,createdAt:Date.now()});save();return'已创建记忆，id='+(S.mems.length-1)}
+if(name==='edit_memory'){let i=input.id;if(i===undefined||!S.mems[i])return'失败：id不存在';if(S.mems[i].locked)return'失败：该记忆已锁定';S.mems[i].content=input.content;save();return'已更新记忆 id='+i}
+if(name==='delete_memory'){let i=input.id;if(i===undefined||!S.mems[i])return'失败：id不存在';if(S.mems[i].locked)return'失败：该记忆已锁定';S.mems.splice(i,1);save();return'已删除记忆 id='+i}
+if(name==='create_diary'){if(!input.content)return'失败：内容为空';S.diary.push({author:'ai',content:input.content,ts:Date.now(),comments:[]});save();return'已发布日记，id='+(S.diary.length-1)}
+if(name==='add_comment'){let i=input.diary_id;if(i===undefined||!S.diary[i])return'失败：日记id不存在';if(!S.diary[i].comments)S.diary[i].comments=[];S.diary[i].comments.push({author:'ai',content:input.content,ts:Date.now()});save();return'已在日记 '+i+' 下添加评论'}
+return'未知工具'}catch(e){return'执行出错：'+e.message}}
+function tryUnlock(){let v=document.getElementById('lki').value;if(v===PASS){sessionStorage.setItem('fw_unlock','1');document.getElementById('lock').style.display='none';init()}else{document.getElementById('lkerr').textContent='密码错误';document.getElementById('lki').value=''}}
+function init(){load();applyTh();renderCL();if(S.cur&&S.convs[S.cur])renderMs();else newChat();loadSU();updPH();initVV();document.getElementById('mi').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}})}
+function initVV(){if(!window.visualViewport)return;let vv=window.visualViewport,app=document.getElementById('app'),tw={raf:0,to:0};
+function tween(to,ms){if(tw.raf&&Math.abs(tw.to-to)<2)return;cancelAnimationFrame(tw.raf);let from=app.getBoundingClientRect().height,t0=performance.now();tw.to=to;(function step(now){let p=Math.min(1,(now-t0)/ms),e=1-Math.pow(1-p,3);app.style.height=Math.round(from+(to-from)*e)+'px';if(p<1)tw.raf=requestAnimationFrame(step);else{tw.raf=0;if(Math.abs(to-window.innerHeight)<2)app.style.height=''}})(performance.now())}
+let lastH=vv.height;
+vv.addEventListener('resize',()=>{let h=vv.height;if(h<lastH){cancelAnimationFrame(tw.raf);tw.raf=0;app.style.height=h+'px'}else{tween(h,240)}lastH=h;scrD()});
+vv.addEventListener('scroll',()=>{if(vv.offsetTop>0)window.scrollTo(0,0)})}
+function load(){try{let s=localStorage.getItem('fw_s');if(s)S.sets={...S.sets,...JSON.parse(s)};let c=localStorage.getItem('fw_c');if(c)S.convs=JSON.parse(c);let m=localStorage.getItem('fw_m');if(m)S.mems=JSON.parse(m);let d=localStorage.getItem('fw_d');if(d)S.diary=JSON.parse(d);S.cur=localStorage.getItem('fw_cur')}catch(e){}}
+function save(){localStorage.setItem('fw_s',JSON.stringify(S.sets));localStorage.setItem('fw_c',JSON.stringify(S.convs));localStorage.setItem('fw_m',JSON.stringify(S.mems));localStorage.setItem('fw_d',JSON.stringify(S.diary));if(S.cur)localStorage.setItem('fw_cur',S.cur)}
+function updPH(){document.getElementById('mi').placeholder=`给${S.sets.aiName||'Renn'}发消息...`}
+function toggleTh(){let c=document.documentElement.getAttribute('data-theme');let n=c==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('fw_th',n);document.getElementById('tb').textContent=n==='dark'?'☀':'☽';let mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=n==='dark'?'#262018':'#F5EFE6'}
+function applyTh(){let t=localStorage.getItem('fw_th')||'light';document.documentElement.setAttribute('data-theme',t);let tb=document.getElementById('tb');if(tb)tb.textContent=t==='dark'?'☀':'☽';let mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=t==='dark'?'#262018':'#F5EFE6'}
+function toggleSb(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('show')}
+function closeSb(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')}
+function go(v){closeSb();document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));document.getElementById(v+'View').classList.add('active');if(v==='memory')rMems();if(v==='settings')loadSU();if(v==='diary')rDiary()}
+function newChat(){let id=Date.now().toString();S.convs[id]={title:'新对话',msgs:[],api:[]};S.cur=id;save();renderCL();renderMs();closeSb()}
+function switchC(id){S.cur=id;save();renderCL();renderMs();closeSb();go('chat')}
+function delC(id,e){e.stopPropagation();delete S.convs[id];if(S.cur===id){let ids=Object.keys(S.convs);if(ids.length)S.cur=ids[ids.length-1];else{newChat();return}}save();renderCL();renderMs()}
+function editTitle(id,e){e.stopPropagation();S.titleId=id;document.getElementById('tmi').value=S.convs[id].title;document.getElementById('tmm').classList.add('show')}
+function saveTitle(){let t=document.getElementById('tmi').value.trim();if(t&&S.titleId){S.convs[S.titleId].title=t;save();renderCL()}closeMd('tmm')}
+function renderCL(){let l=document.getElementById('clist');l.innerHTML='';Object.keys(S.convs).reverse().forEach(id=>{let c=S.convs[id];let d=document.createElement('div');d.className='sb-item'+(id===S.cur?' act':'');d.onclick=()=>switchC(id);d.innerHTML=`<span>${esc(c.title)}</span><button class="sb-act" onclick="editTitle('${id}',event)">✎</button><button class="sb-act" onclick="delC('${id}',event)" style="font-size:18px">×</button>`;l.appendChild(d)})}
+function renderMs(){let c=document.getElementById('msgs');c.innerHTML='';let cv=S.convs[S.cur];if(!cv||!cv.msgs.length){c.innerHTML=`<div class="empty"><p>给${esc(S.sets.aiName||'Renn')}发消息开始对话</p></div>`;return}cv.msgs.forEach((m,i)=>addDOM(m,i));scrD()}
+function fmtTs(ts){if(!ts)return'';let d=new Date(ts);let now=new Date();let h=String(d.getHours()).padStart(2,'0');let min=String(d.getMinutes()).padStart(2,'0');if(d.toDateString()===now.toDateString())return h+':'+min;return(d.getMonth()+1)+'/'+d.getDate()+' '+h+':'+min}
+function fmtFull(ts){if(!ts)return'';let d=new Date(ts);return`${d.getMonth()+1}月${d.getDate()}日 ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}
+function addDOM(m,idx){let c=document.getElementById('msgs');let d=document.createElement('div');d.className='msg '+(m.role==='user'?'u':'a');let h='';if(m.image)h+=`<img class="mimg" src="${m.image}">`;if(m.thinking)h+=`<div class="thk" onclick="this.classList.toggle('open')"><div class="thk-hd"><span class="ar">▶</span> 思考过程</div><div class="thk-bd">${esc(m.thinking)}</div></div>`;if(m.text)h+=`<div class="bub">${md(m.text)}</div>`;if(m.tools&&m.tools.length)m.tools.forEach(t=>{h+=`<div class="ts" style="opacity:.7">· ${esc(t)}</div>`});if(m.ts){h+=`<div class="ts">${fmtTs(m.ts)}`;if(m.role==='user'&&idx!==undefined)h+=`<button class="msg-edit" onclick="editUserMsg(${idx})">编辑</button>`;h+=`</div>`}d.innerHTML=h;c.appendChild(d);return d}
+function scrD(){let a=document.getElementById('ca');a.scrollTop=a.scrollHeight}
+function nearB(){let a=document.getElementById('ca');return a.scrollHeight-a.scrollTop-a.clientHeight<100}
+function openDiaryModal(){document.getElementById('dmi').value='';rmDiaryImg();document.getElementById('dmm').classList.add('show')}
+function hDiaryImg(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=function(ev){let img=new Image();img.onload=function(){let mx=800,w=img.width,h=img.height;if(w>mx||h>mx){if(w>h){h=h*mx/w;w=mx}else{w=w*mx/h;h=mx}}let cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);let du=cv.toDataURL('image/jpeg',0.75);S.dpimg=du;document.getElementById('dpimg').src=du;document.getElementById('dip').classList.add('show')};img.src=ev.target.result};r.readAsDataURL(f);e.target.value=''}
+function rmDiaryImg(){S.dpimg=null;document.getElementById('dip').classList.remove('show');document.getElementById('dpimg').src=''}
+function saveDiary(){let c=document.getElementById('dmi').value.trim();if(!c&&!S.dpimg)return;let e={author:'user',content:c,ts:Date.now(),comments:[]};if(S.dpimg)e.image=S.dpimg;S.diary.push(e);save();closeMd('dmm');rmDiaryImg();rDiary()}
+function delDiary(i){if(!confirm('删除这篇日记？'))return;S.diary.splice(i,1);save();rDiary()}
+function addCmt(i){let inp=document.getElementById('ci'+i);let t=inp.value.trim();if(!t)return;if(!S.diary[i].comments)S.diary[i].comments=[];S.diary[i].comments.push({author:'user',content:t,ts:Date.now()});save();rDiary()}
+function rDiary(){let l=document.getElementById('dl');l.innerHTML='';if(!S.diary.length){l.innerHTML='<div class="dia-empty">还没有日记<br>点右上角写第一篇</div>';return}
+let an=esc(S.sets.aiName||'Renn'),un=esc(S.sets.userName||'我');
+S.diary.slice().reverse().forEach(d=>{let i=S.diary.indexOf(d);let isMe=d.author==='user';let c=document.createElement('div');c.className='dc';
+let h=`<div class="dc-hd"><div class="dc-who"><span class="dc-dot${isMe?' me':''}"></span><span class="dc-name">${isMe?un:an}</span><span class="dc-time">${fmtFull(d.ts)}</span></div><button class="dc-del" onclick="delDiary(${i})">×</button></div>`;
+if(d.image)h+=`<img class="dc-img" src="${d.image}">`;
+if(d.content)h+=`<div class="dc-body">${esc(d.content)}</div>`;
+h+=`<div class="dc-cmts">`;
+if(d.comments&&d.comments.length)d.comments.forEach(cm=>{let cme=cm.author==='user';h+=`<div class="cmt"><div class="cmt-hd"><span class="cmt-name${cme?' me':''}">${cme?un:an}</span><span class="cmt-time">${fmtFull(cm.ts)}</span></div><div class="cmt-body">${esc(cm.content)}</div></div>`});
+h+=`<div class="cmt-add"><input id="ci${i}" placeholder="说点什么..."><button onclick="addCmt(${i})">发送</button></div></div>`;
+c.innerHTML=h;l.appendChild(c)})}
+function toggleSearch(){let bar=document.getElementById('sbar');if(bar.classList.contains('show')){bar.classList.remove('show');clearSearch()}else{bar.classList.add('show')}}
+function doSearch(){let q=document.getElementById('sinp').value.trim().toLowerCase();let area=document.getElementById('ca');let msgs=document.querySelectorAll('#msgs .msg');if(!q){clearSearch();return}area.classList.add('searching');let cnt=0;msgs.forEach(m=>{if(m.textContent.toLowerCase().includes(q)){m.classList.add('hl');cnt++}else{m.classList.remove('hl')}});document.getElementById('scnt').textContent=cnt+'个结果'}
+function clearSearch(){document.getElementById('sinp').value='';document.getElementById('scnt').textContent='';document.getElementById('ca').classList.remove('searching');document.querySelectorAll('#msgs .msg').forEach(m=>m.classList.remove('hl'))}
+function editUserMsg(idx){S.editIdx=idx;let cv=S.convs[S.cur];document.getElementById('emmi').value=cv.msgs[idx].text||'';document.getElementById('emm').classList.add('show')}
+function resendMsg(){let text=document.getElementById('emmi').value.trim();if(!text)return;let cv=S.convs[S.cur];let apiIdx=0,cnt=0;for(let i=0;i<cv.api.length;i++){if(cv.api[i].role==='user'&&!(Array.isArray(cv.api[i].content)&&cv.api[i].content[0]?.type==='tool_result')){if(cnt===S.editIdx){apiIdx=i;break}cnt++}}cv.msgs=cv.msgs.slice(0,S.editIdx);cv.api=cv.api.slice(0,apiIdx);save();renderMs();closeMd('emm');document.getElementById('mi').value=text;send()}
+function buildSys(){let p=[];let an=S.sets.aiName||'Renn',un=S.sets.userName||'用户';
+if(S.sets.incTime){let now=new Date();let wd=['日','一','二','三','四','五','六'];p.push(`[时间信息]\n当前时间: ${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 星期${wd[now.getDay()]} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`)}
+if(S.sets.incMem){let ms=S.mems;if(S.sets.maxMem>0)ms=ms.slice(0,S.sets.maxMem);let t='<memories>\n';ms.forEach((m,i)=>{t+=`<record><id>${i}</id><content>${m.content}</content>${m.locked?'<locked>true</locked>':''}</record>\n`});t+='</memories>';let tip=S.sets.tools?'你可以使用 create_memory / edit_memory / delete_memory 主动管理记忆。发现值得长期记住的信息时主动记录，相关记忆合并更新而非重复创建，过时的删除。locked 的记忆不可改。\n':'';p.push(`[记忆库]\n${tip}${t}`)}
+let n=parseInt(S.sets.diaryCtx);if(isNaN(n))n=10;
+if(n>0&&S.diary.length){let start=Math.max(0,S.diary.length-n);let t='<diary>\n';for(let i=start;i<S.diary.length;i++){let d=S.diary[i];t+=`<entry id="${i}" author="${d.author==='user'?un:an}" time="${fmtFull(d.ts)}">\n<content>${d.content||''}</content>${d.image?'\n<has_image>true</has_image>':''}\n`;if(d.comments&&d.comments.length){t+='<comments>\n';d.comments.forEach(c=>{t+=`<c author="${c.author==='user'?un:an}" time="${fmtFull(c.ts)}">${c.content}</c>\n`});t+='</comments>\n'}t+='</entry>\n'}t+='</diary>';
+let tip=S.sets.tools?`这是你和${un}共享的日记本，你们都能发布和评论。你可以用 create_diary 发布日记，用 add_comment 在某篇下评论。看到${un}写了新东西时可以自然地回应——在聊天里提起，或者去日记下面留言。不需要每次都调用，想说的时候再说。\n`:'';
+p.push(`[日记本]\n${tip}${t}`)}
+if(S.sets.sys)p.push(S.sets.sys);return p.join('\n\n')}
+/*★2 失败回滚：把 api 尾部清到干净状态，避免出现连续 user 导致 400*/
+function rollbackApi(cv){while(cv.api.length){let last=cv.api[cv.api.length-1];if(last.role==='user'){cv.api.pop();continue}if(Array.isArray(last.content)&&last.content.some(b=>b.type==='tool_use')){cv.api.pop();continue}break}}
+async function send(){if(S.gen)return;let inp=document.getElementById('mi');let text=inp.value.trim();if(!text&&!S.pimg)return;
+/*★4 三项校验*/
+if(!S.sets.key||!S.sets.url||!S.sets.model){alert('请先在设置中填写 API Key、API 地址和模型');go('settings');return}
+let cv=S.convs[S.cur];let um={role:'user',text,ts:Date.now()};let ac=[];if(S.pimg){um.image=S.pimg.preview;ac.push({type:'image',source:{type:'base64',media_type:S.pimg.type,data:S.pimg.data}})}if(text)ac.push({type:'text',text});let am={role:'user',content:ac.length===1&&!S.pimg?text:ac};if(cv.msgs.length===0&&text){cv.title=text.substring(0,30);renderCL()}let empty=document.querySelector('.empty');if(empty)empty.remove();cv.msgs.push(um);if(!cv.api)cv.api=[];cv.api.push(am);addDOM(um,cv.msgs.length-1);scrD();inp.value='';aH(inp);rmImg();S.gen=true;S.ac=new AbortController();document.getElementById('sb').disabled=true;document.getElementById('stopBtn').classList.add('show');
+try{await runTurn(cv,0)}catch(e){let tp=document.getElementById('tmsg');if(tp)tp.remove();
+/*★2 失败时回滚 api，并把文字放回输入框*/
+rollbackApi(cv);
+if(cv.msgs.length&&cv.msgs[cv.msgs.length-1].role==='user'){cv.msgs.pop();renderMs()}
+if(text){inp.value=text;aH(inp)}
+if(e.name!=='AbortError'){let ed=document.createElement('div');ed.className='msg a';ed.innerHTML=`<div class="bub" style="color:#e55">${esc(e.message)}<br><span style="font-size:12px;opacity:.7">消息已放回输入框，可以直接重发</span></div>`;document.getElementById('msgs').appendChild(ed);scrD()}
+save()}
+S.gen=false;S.ac=null;document.getElementById('sb').disabled=false;document.getElementById('stopBtn').classList.remove('show')}
+async function runTurn(cv,depth){if(depth>8)return;let an=esc(S.sets.aiName||'Renn');let td=document.createElement('div');td.className='msg a';td.id='tmsg';td.innerHTML=`<div class="bub"><div class="typ-wrap"><span class="typ-label">${an}正在输入</span><div class="typ"><span></span><span></span><span></span></div></div></div>`;document.getElementById('msgs').appendChild(td);scrD();
+let sys=buildSys();let apiMs=cv.api.map(m=>{if(m.role!=='assistant')return m;if(!S.sets.think&&Array.isArray(m.content)){let f=m.content.filter(b=>b.type!=='thinking'&&b.type!=='redacted_thinking');return{role:'assistant',content:f.length?f:'...'}}return m});
+let body={model:S.sets.model,max_tokens:parseInt(S.sets.maxTok)||16000,system:sys,messages:apiMs,stream:true};if(S.sets.tools)body.tools=TOOLS;if(S.sets.think){body.thinking={type:'enabled',budget_tokens:parseInt(S.sets.budget)||10000}}else{let temp=parseFloat(S.sets.temp);if(!isNaN(temp)&&temp>=0&&temp<=1)body.temperature=temp}
+let res=await fetch(S.sets.url+'/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.sets.key,'anthropic-version':'2023-06-01'},body:JSON.stringify(body),signal:S.ac.signal});if(!res.ok){let e=await res.text();throw new Error('API '+res.status+': '+e)}
+let tp=document.getElementById('tmsg');if(tp)tp.remove();
+let reader=res.body.getReader(),dec=new TextDecoder(),buf='',thk='',rtx='',sig='',cbt=null,thkEl=null,txEl=null,blocks=[],curTool=null,toolJson='',stopReason='',toolNames=[];
+let ad=document.createElement('div');ad.className='msg a';document.getElementById('msgs').appendChild(ad);
+/*★3 整段读流包 try/finally，结束后必须释放 reader，否则 Safari 连接池卡死导致第二条 Load failed*/
+try{
+while(true){let{done,value}=await reader.read();if(done)break;buf+=dec.decode(value,{stream:true});let lines=buf.split('\n');buf=lines.pop()||'';
+for(let line of lines){if(!line.startsWith('data: '))continue;let d=line.slice(6).trim();if(d==='[DONE]')continue;
+try{let ev=JSON.parse(d);
+if(ev.type==='content_block_start'){cbt=ev.content_block?.type;
+/*★5 思考中默认展开*/
+if(cbt==='thinking'){thk='';sig='';thkEl=document.createElement('div');thkEl.className='thk open';thkEl.innerHTML='<div class="thk-hd" onclick="this.parentElement.classList.toggle(\'open\')"><span class="ar">▶</span> 思考中...</div><div class="thk-bd"></div>';ad.appendChild(thkEl)}
+else if(cbt==='text'){rtx='';txEl=document.createElement('div');txEl.className='bub';ad.appendChild(txEl)}
+else if(cbt==='tool_use'){curTool={id:ev.content_block.id,name:ev.content_block.name};toolJson=''}}
+if(ev.type==='content_block_delta'){let nb=nearB();
+if(ev.delta?.type==='thinking_delta'){thk+=ev.delta.thinking;if(thkEl)thkEl.querySelector('.thk-bd').textContent=thk}
+else if(ev.delta?.type==='signature_delta'){sig=ev.delta.signature}
+else if(ev.delta?.type==='text_delta'){rtx+=ev.delta.text;if(txEl)txEl.innerHTML=md(rtx)}
+else if(ev.delta?.type==='input_json_delta'){toolJson+=ev.delta.partial_json}
+if(nb)scrD()}
+if(ev.type==='content_block_stop'){
+/*★5 思考完成后自动折叠*/
+if(cbt==='thinking'){if(thkEl){thkEl.querySelector('.thk-hd').innerHTML='<span class="ar">▶</span> 思考过程';thkEl.classList.remove('open')}let b={type:'thinking',thinking:thk};if(sig)b.signature=sig;blocks.push(b)}
+else if(cbt==='text'){blocks.push({type:'text',text:rtx})}
+else if(cbt==='tool_use'&&curTool){let input={};try{input=toolJson?JSON.parse(toolJson):{}}catch(e){}curTool.input=input;blocks.push({type:'tool_use',id:curTool.id,name:curTool.name,input});let tn={create_memory:'记录了一条记忆',edit_memory:'更新了一条记忆',delete_memory:'删除了一条记忆',create_diary:'写了一篇日记',add_comment:'在日记下留言了'}[curTool.name]||curTool.name;toolNames.push(tn);let te=document.createElement('div');te.className='ts';te.style.opacity='.7';te.textContent='· '+tn;ad.appendChild(te);scrD();curTool=null}
+cbt=null}
+if(ev.type==='message_delta'&&ev.delta?.stop_reason)stopReason=ev.delta.stop_reason;
+}catch(e){}}}
+}finally{try{reader.releaseLock()}catch(e){}try{await res.body.cancel()}catch(e){}}
+let lastTs=Date.now();
+let disp={role:'assistant',ts:lastTs};if(thk)disp.thinking=thk;if(rtx)disp.text=rtx;if(toolNames.length)disp.tools=toolNames;
+if(thk||rtx||toolNames.length)cv.msgs.push(disp);
+cv.api.push({role:'assistant',content:blocks});
+let toolUses=blocks.filter(b=>b.type==='tool_use');
+if(toolUses.length&&stopReason==='tool_use'){let results=toolUses.map(t=>({type:'tool_result',tool_use_id:t.id,content:execTool(t.name,t.input)}));cv.api.push({role:'user',content:results});save();await runTurn(cv,depth+1);return}
+let tsEl=document.createElement('div');tsEl.className='ts';tsEl.textContent=fmtTs(lastTs);ad.appendChild(tsEl);save()}
+/*★3 中止时也清干净*/
+function stopG(){if(S.ac){S.ac.abort();S.ac=null}}
+function hImg(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=function(ev){let img=new Image();img.onload=function(){let mx=1024,w=img.width,h=img.height;if(w>mx||h>mx){if(w>h){h=h*mx/w;w=mx}else{w=w*mx/h;h=mx}}let cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);let du=cv.toDataURL(f.type||'image/jpeg',0.8);S.pimg={data:du.split(',')[1],type:f.type||'image/jpeg',preview:du};document.getElementById('pimg').src=du;document.getElementById('ip').classList.add('show')};img.src=ev.target.result};r.readAsDataURL(f);e.target.value=''}
+function rmImg(){S.pimg=null;document.getElementById('ip').classList.remove('show');document.getElementById('pimg').src=''}
+function rMems(){let l=document.getElementById('ml');let q=document.getElementById('ms').value.trim().toLowerCase();l.innerHTML='';let fl=S.mems.filter(m=>!q||m.content.toLowerCase().includes(q));if(!fl.length){l.innerHTML=`<div class="mem-empty">${q?'没有匹配的记忆':'还没有记忆碎片'}</div>`;return}fl.forEach(m=>{let ri=S.mems.indexOf(m);let d=document.createElement('div');d.className='mc'+(m.locked?' locked':'');let dt=m.createdAt?new Date(m.createdAt).toLocaleDateString('zh-CN'):'';d.innerHTML=`<div class="mc-body">${esc(m.content)}</div><div class="mc-ft"><span>${dt}</span><div class="mc-acts"><button class="lk" onclick="tgLock(${ri})">${m.locked?'锁定':'未锁'}</button><button onclick="editMem(${ri})" ${m.locked?'disabled':''}>编辑</button><button onclick="delMem(${ri})" ${m.locked?'disabled':''}>删除</button></div></div>`;l.appendChild(d)})}
+function addMem(){S.emid=null;document.getElementById('mmt').textContent='添加记忆';document.getElementById('mmi').value='';document.getElementById('mm').classList.add('show')}
+function editMem(i){if(S.mems[i].locked)return;S.emid=i;document.getElementById('mmt').textContent='编辑记忆';document.getElementById('mmi').value=S.mems[i].content;document.getElementById('mm').classList.add('show')}
+function saveMem(){let c=document.getElementById('mmi').value.trim();if(!c)return;if(S.emid!==null)S.mems[S.emid].content=c;else S.mems.push({content:c,locked:false,createdAt:Date.now()});save();closeMd('mm');rMems()}
+function delMem(i){if(S.mems[i].locked||!confirm('删除这条记忆？'))return;S.mems.splice(i,1);save();rMems()}
+function tgLock(i){S.mems[i].locked=!S.mems[i].locked;save();rMems()}
+function closeMd(id){document.getElementById(id).classList.remove('show')}
+function loadSU(){let g=id=>document.getElementById(id);g('sk').value=S.sets.key;g('su').value=S.sets.url;g('smo').value=S.sets.model;g('san').value=S.sets.aiName||'Renn';g('sun').value=S.sets.userName||'小u';g('ss').value=S.sets.sys;g('sbd').value=S.sets.budget;g('smx').value=S.sets.maxTok;g('stemp').value=S.sets.temp!==undefined?S.sets.temp:1;g('smm').value=S.sets.maxMem;g('sdc').value=S.sets.diaryCtx!==undefined?S.sets.diaryCtx:10;S.sets.think?g('stk').classList.add('on'):g('stk').classList.remove('on');S.sets.incMem?g('sim').classList.add('on'):g('sim').classList.remove('on');S.sets.incTime?g('sit').classList.add('on'):g('sit').classList.remove('on');S.sets.tools?g('stl').classList.add('on'):g('stl').classList.remove('on')}
+function saveS(){let g=id=>document.getElementById(id);S.sets.key=g('sk').value.trim();S.sets.url=g('su').value.trim().replace(/\/$/,'');S.sets.model=g('smo').value.trim();S.sets.aiName=g('san').value.trim()||'Renn';S.sets.userName=g('sun').value.trim()||'小u';S.sets.sys=g('ss').value;S.sets.think=g('stk').classList.contains('on');S.sets.budget=parseInt(g('sbd').value)||10000;S.sets.maxTok=parseInt(g('smx').value)||16000;S.sets.temp=parseFloat(g('stemp').value);if(isNaN(S.sets.temp))S.sets.temp=1;S.sets.incMem=g('sim').classList.contains('on');S.sets.incTime=g('sit').classList.contains('on');S.sets.tools=g('stl').classList.contains('on');S.sets.maxMem=parseInt(g('smm').value)||0;S.sets.diaryCtx=parseInt(g('sdc').value);if(isNaN(S.sets.diaryCtx))S.sets.diaryCtx=10;save();updPH();go('chat')}
+function sTab(btn,id){btn.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('act'));btn.classList.add('act');document.querySelectorAll('.tc').forEach(c=>c.classList.remove('act'));document.getElementById(id).classList.add('act')}
+/*★4 导出可选是否含 Key*/
+function exportData(withKey){let sets={...S.sets};if(!withKey)sets.key='';let data={sets,convs:S.convs,mems:S.mems,diary:S.diary,cur:S.cur};let blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});let url=URL.createObjectURL(blob);let a=document.createElement('a');a.href=url;a.download='feather-backup-'+new Date().toISOString().slice(0,10)+(withKey?'':'-nokey')+'.json';a.click();URL.revokeObjectURL(url)}
+function importData(){let input=document.createElement('input');input.type='file';input.accept='.json';input.onchange=function(e){let file=e.target.files[0];if(!file)return;let reader=new FileReader();reader.onload=function(ev){try{let data=JSON.parse(ev.target.result);if(data.sets)S.sets={...S.sets,...data.sets};if(data.convs)S.convs=data.convs;if(data.mems)S.mems=data.mems;if(data.diary)S.diary=data.diary;if(data.cur)S.cur=data.cur;save();alert('导入成功');location.reload()}catch(e){alert('导入失败：文件格式不正确')}};reader.readAsText(file)};input.click()}
+function resetData(){if(!confirm('确定要重置所有数据吗？此操作不可恢复。'))return;if(!confirm('再次确认：所有对话、日记、记忆和设置都将被清除。'))return;localStorage.clear();location.reload()}
+function aH(el){let sc=document.getElementById('ca'),st=sc.scrollTop;el.style.height='36px';el.style.height=Math.min(el.scrollHeight,120)+'px';if(sc.scrollTop!==st)sc.scrollTop=st}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+function md(t){if(!t)return'';let ps=t.split(/(```[\s\S]*?```)/g);return ps.map(p=>{if(p.startsWith('```')&&p.endsWith('```')){let c=p.slice(3,-3).replace(/^\w*\n/,'');return'<pre><code>'+esc(c)+'</code></pre>'}let h=esc(p);h=h.replace(/`([^`]+)`/g,'<code>$1</code>');h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');h=h.replace(/\*(.+?)\*/g,'<em>$1</em>');h=h.replace(/\n/g,'<br>');return h}).join('')}
+applyTh();
+document.getElementById('lki').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock()});
+if(sessionStorage.getItem('fw_unlock')==='1'){document.getElementById('lock').style.display='none';init()}
+</script>
+</body>
+</html>
