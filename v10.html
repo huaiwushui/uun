@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover,interactive-widget=resizes-content">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#FEFCF6">
+<title>Feather</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+--bg:#F5EFE6;--bg2:#FEFCF6;--bg3:#ECDDC8;
+--tx:#2C2013;--tx2:#8A7A65;--tx3:#B89B82;
+--ac:#7D5A44;--ac2:#6B4D3A;--acl:#F0E5D8;
+--bd:#E3D8C8;--ubg:#ECDDC8;--abg:#FEFCF6;
+--sbbg:#EDE5D8;--thbg:#F0E8DC;--thbd:#E3D8C8;
+--card:#FEFCF6;--ibg:#FEFCF6;
+--sh:0 1px 3px rgba(0,0,0,.05);--sh2:0 4px 16px rgba(0,0,0,.08);
+--st:env(safe-area-inset-top);--sbt:env(safe-area-inset-bottom)
+}
+[data-theme="dark"]{
+--bg:#1C1814;--bg2:#262018;--bg3:#342C22;
+--tx:#E5DDD4;--tx2:#A89880;--tx3:#7A6E5E;
+--ac:#C49070;--ac2:#D4A080;--acl:#382C20;
+--bd:#3A3228;--ubg:#382C20;--abg:#262018;
+--sbbg:#16120E;--thbg:#2C2518;--thbd:#3A3228;
+--card:#262018;--ibg:#2E2820;
+--sh:0 1px 3px rgba(0,0,0,.2);--sh2:0 4px 16px rgba(0,0,0,.3)
+}
+html{background:var(--bg2)}
+html,body{height:100%;width:100%;overflow:hidden;position:fixed;top:0;left:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg2);color:var(--tx);-webkit-text-size-adjust:100%}
+#app{position:fixed;top:0;left:0;right:0;height:100%;display:flex;flex-direction:column;overflow:hidden;background:var(--bg2);transform:translateZ(0)}
+#stack{flex:1 1 auto;min-height:0;position:relative;overflow:hidden}
+.view{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;background:var(--bg2)}
+.view.active{display:flex}
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:90}
+#overlay.show{display:block}
+#sidebar{position:fixed;left:-290px;top:0;bottom:0;width:290px;background:var(--sbbg);z-index:100;transition:left .28s ease;display:flex;flex-direction:column;overflow:hidden;padding-top:var(--st);transform:translateZ(0)}
+#sidebar.open{left:0}
+.sb-hd{padding:12px;flex-shrink:0}
+.new-btn{width:100%;padding:11px;background:var(--ac);color:#FFF;border:none;border-radius:10px;font-size:15px;cursor:pointer}
+.new-btn:active{background:var(--ac2)}
+.sb-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:2px 8px}
+.sb-item{padding:11px;border-radius:10px;cursor:pointer;display:flex;align-items:center;margin-bottom:2px;font-size:14px;gap:4px}
+.sb-item:active,.sb-item.act{background:var(--acl)}
+.sb-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.sb-act{background:none;border:none;color:var(--tx3);cursor:pointer;padding:0 3px;opacity:0;font-size:14px;flex-shrink:0}
+.sb-item.act .sb-act{opacity:.5}
+.sb-nav{flex-shrink:0;display:flex;border-top:1px solid var(--bd);background:var(--sbbg);padding-bottom:var(--sbt)}
+.snv{flex:1;background:none;border:none;padding:12px 0 7px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;color:var(--tx3);font-size:10px}
+.snv.act{color:var(--ac)}
+.snv svg{width:19px;height:19px;stroke-width:1.9}
+.hd{display:flex;align-items:center;padding:7px 10px;padding-top:calc(9px + var(--st));background:var(--bg2);border-bottom:1px solid var(--bd);min-height:44px;flex-shrink:0}
+.ib{background:none;border:none;color:var(--tx);font-size:18px;cursor:pointer;padding:3px 6px;border-radius:8px;display:flex;align-items:center;justify-content:center}
+.hd-title{font-size:15px;font-weight:600;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd-acts{display:flex;align-items:center;gap:6px}
+.hd-save{background:none;border:none;color:var(--ac);font-size:15px;font-weight:600;cursor:pointer;padding:4px 6px}
+.body-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.sbar{display:none;padding:6px 14px;background:var(--bg2);border-bottom:1px solid var(--bd);align-items:center;gap:8px;flex-shrink:0}
+.sbar.show{display:flex}
+.sbar input{flex:1;padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none}
+.scnt{font-size:11px;color:var(--tx3);white-space:nowrap}
+.chat-wrap{flex:1 1 auto;min-height:0;position:relative;display:flex;flex-direction:column}
+.chat-area{padding:17px 14px 6px;background:var(--bg)}
+.chat-area.searching .msg{opacity:.2}
+.chat-area.searching .msg.hl{opacity:1}
+#toBot{display:none;position:absolute;right:14px;bottom:14px;width:36px;height:36px;border-radius:50%;background:var(--card);border:1px solid var(--bd);box-shadow:var(--sh2);color:var(--tx2);font-size:15px;cursor:pointer;z-index:8;align-items:center;justify-content:center}
+#toBot.show{display:flex}
+.msg{margin-bottom:14px;display:flex;flex-direction:column;border-radius:12px;transition:background .5s}
+.msg.jump{background:var(--acl)}
+.msg.u{align-items:flex-end}
+.msg.a{align-items:flex-start}
+.sysline{text-align:center;font-size:11px;color:var(--tx3);margin:10px 0 14px}
+.bubs{display:flex;flex-direction:column;gap:6px;align-items:flex-start;max-width:100%;width:100%}
+.msg.u .bubs{align-items:flex-end}
+.bub{max-width:82%;padding:10px 14px;border-radius:16px;font-size:15px;line-height:1.65;word-wrap:break-word;overflow-wrap:break-word;user-select:none;-webkit-user-select:none}
+.msg.u .bub{background:var(--ubg);border-bottom-right-radius:4px}
+.msg.a .bub{background:var(--abg);border-bottom-left-radius:4px;box-shadow:var(--sh)}
+.msg.pinned .bub{border-left:3px solid var(--ac)}
+.msg.pinned .thk{border-left:3px solid var(--ac)}
+.bub blockquote{border-left:2px solid var(--ac);padding-left:9px;margin:0 0 7px;color:var(--tx2);font-size:13px;line-height:1.55}
+.errb{background:var(--bg3);border:1px dashed var(--bd);border-radius:16px;padding:10px 14px;font-size:14px;color:var(--tx2);cursor:pointer;max-width:82%}
+.errd{display:none;margin-top:8px;font-size:11px;color:var(--tx3);line-height:1.5;word-break:break-all;font-family:'SF Mono',Monaco,monospace}
+.errb.open .errd{display:block}
+.erracts{display:flex;gap:14px;margin-top:5px;padding:0 4px}
+.erracts button{background:none;border:none;color:var(--ac);font-size:12px;cursor:pointer;padding:2px}
+.ts{font-size:11px;color:var(--tx3);margin-top:3px;padding:0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cutbar{font-size:11px;color:#c88;margin-top:4px;padding:0 4px;display:flex;align-items:center;gap:12px}
+.cutbar button{background:none;border:none;color:var(--ac);font-size:11px;cursor:pointer;padding:2px}
+.mimgs{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;max-width:82%}
+.mimgs img{width:104px;height:104px;object-fit:cover;border-radius:10px;display:block;cursor:pointer}
+.mimgs.one img{width:auto;height:auto;max-width:200px;max-height:200px}
+.thk{margin-bottom:6px;border:1px solid var(--thbd);border-radius:10px;overflow:hidden;max-width:82%}
+.thk-hd{padding:7px 12px;background:var(--thbg);cursor:pointer;font-size:13px;color:var(--tx2);display:flex;align-items:center;gap:6px;user-select:none;-webkit-user-select:none}
+.thk-bd{display:none;padding:10px 12px;background:var(--thbg);font-size:13px;line-height:1.6;color:var(--tx2);max-height:280px;overflow-y:auto;white-space:pre-wrap}
+.thk.open .thk-bd{display:block}
+.thk.open .ar{transform:rotate(90deg)}
+.ar{transition:transform .2s;display:inline-block;font-size:10px}
+.bub code{background:var(--bg3);padding:1px 5px;border-radius:4px;font-size:13px;font-family:'SF Mono',Monaco,Consolas,monospace}
+.bub pre{background:var(--bg3);padding:10px;border-radius:8px;overflow-x:auto;margin:6px 0}
+.bub pre code{background:none;padding:0}
+.typ-wrap{display:flex;align-items:center;gap:8px}
+.typ-label{font-size:13px;color:var(--tx3)}
+.typ{display:flex;gap:4px}
+.typ span{width:5px;height:5px;border-radius:50%;background:var(--tx3);animation:tb 1.4s infinite}
+.typ span:nth-child(2){animation-delay:.2s}
+.typ span:nth-child(3){animation-delay:.4s}
+@keyframes tb{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.empty{text-align:center;padding:60px 20px;color:var(--tx3);font-size:15px}
+#stopBtn{display:none;margin:8px auto;padding:6px 20px;background:var(--bg2);border:1px solid var(--bd);border-radius:20px;color:var(--tx2);font-size:13px;cursor:pointer}
+#stopBtn.show{display:block}
+.qbar{display:none;padding:8px 12px;background:var(--bg2);border-top:1px solid var(--bd);align-items:stretch;gap:9px;flex-shrink:0}
+.qbar.show{display:flex}
+.qbar-l{width:2px;background:var(--ac);border-radius:1px;flex-shrink:0}
+.qbar-b{flex:1;font-size:12px;color:var(--tx2);line-height:1.5;max-height:36px;overflow:hidden}
+.qbar-b b{color:var(--ac);font-weight:600;margin-right:5px}
+.qbar>button{background:none;border:none;color:var(--tx3);font-size:17px;cursor:pointer;flex-shrink:0;align-self:center}
+.imgp{display:none;padding:8px 12px;background:var(--bg2);border-top:1px solid var(--bd);align-items:center;gap:9px;flex-shrink:0;flex-wrap:wrap}
+.imgp.show{display:flex}
+.ipi{position:relative;flex-shrink:0}
+.ipi img{width:48px;height:48px;object-fit:cover;border-radius:8px;display:block}
+.ipi button{position:absolute;top:-6px;right:-6px;width:19px;height:19px;border-radius:50%;background:var(--tx2);color:#FFF;border:none;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer}
+.ipn{font-size:11px;color:var(--tx3);margin-left:auto}
+.inp{padding:10px 10px 0;padding-bottom:var(--sbt);background:var(--bg2);border-top:1px solid var(--bd);display:flex;align-items:flex-end;gap:8px;flex-shrink:0;transform:translateZ(0)}
+body.kb .inp{padding-bottom:7px}
+.att{background:none;border:none;color:var(--tx3);font-size:23px;cursor:pointer;flex-shrink:0;width:34px;height:34px;display:flex;align-items:center;justify-content:center;line-height:1}
+.att:active{color:var(--ac)}
+#mi{flex:1;border:1px solid var(--bd);border-radius:18px;padding:7px 14px 5px;font-size:16px;background:var(--ibg);color:var(--tx);resize:none;max-height:110px;min-height:34px;height:34px;font-family:inherit;line-height:1.35;outline:none}
+#mi:focus{border-color:var(--ac)}
+#sb{background:var(--ac);color:#FFF;border:none;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+#sb:disabled{opacity:.35}
+.pad{padding:14px;padding-bottom:calc(20px + var(--sbt));background:var(--bg)}
+.search{margin-bottom:12px}
+.search input{width:100%;padding:10px 14px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none}
+.mem-list,.dia-list{display:flex;flex-direction:column;gap:10px}
+.mc{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;box-shadow:var(--sh)}
+.mc.locked{border-left:3px solid var(--ac)}
+.mc.arch{opacity:.55}
+.mc-body{font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;margin-bottom:10px}
+.mc-ft{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--tx3);gap:8px}
+.mc-acts{display:flex;gap:9px;flex-wrap:wrap;justify-content:flex-end}
+.mc-acts button{background:none;border:none;color:var(--ac);font-size:12px;cursor:pointer;padding:2px}
+.mc-acts button:disabled{opacity:.3}
+.mc-acts .lk{color:var(--tx2)}
+.archmk{font-size:10px;color:var(--tx3);border:1px solid var(--bd);border-radius:5px;padding:1px 5px}
+.dc{background:var(--card);border:1px solid var(--bd);border-radius:16px;padding:15px;box-shadow:var(--sh)}
+.dc.star{border-left:3px solid var(--ac)}
+.dc-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;gap:8px}
+.dc-who{display:flex;align-items:center;gap:7px;flex:1;min-width:0}
+.dc-name{font-size:14px;font-weight:600;flex-shrink:0}
+.dc-dot{width:6px;height:6px;border-radius:50%;background:var(--ac);flex-shrink:0}
+.dc-dot.me{background:var(--tx3)}
+.dc-time{font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dc-tools{display:flex;gap:8px;flex-shrink:0}
+.dc-tools button{background:none;border:none;color:var(--tx3);font-size:12px;cursor:pointer;padding:2px 3px}
+.dc-tools button:active{color:var(--ac)}
+.dc-body{font-size:15px;line-height:1.7;white-space:pre-wrap;word-break:break-word;margin-bottom:6px}
+.dc-edited{font-size:11px;color:var(--tx3);margin-bottom:8px;font-style:italic}
+.dc-imgs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.dc-imgs img{width:100%;max-height:270px;object-fit:cover;border-radius:12px;display:block;cursor:pointer}
+.dc-imgs.multi img{width:calc(50% - 3px);height:150px}
+.dc-cmts{border-top:1px solid var(--bd);padding-top:10px;display:flex;flex-direction:column;gap:8px}
+.cmt{padding:8px 10px;background:var(--bg3);border-radius:10px}
+.cmt-hd{display:flex;align-items:center;gap:6px;margin-bottom:2px}
+.cmt-name{font-size:12px;font-weight:600;color:var(--ac)}
+.cmt-name.me{color:var(--tx2)}
+.cmt-time{font-size:10px;color:var(--tx3)}
+.cmt-x{margin-left:auto;background:none;border:none;color:var(--tx3);font-size:12px;cursor:pointer}
+.cmt-body{font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.cmt-add{display:flex;gap:6px;margin-top:4px}
+.cmt-add input{flex:1;padding:7px 10px;border:1px solid var(--bd);border-radius:14px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none}
+.cmt-add button{background:var(--ac);color:#FFF;border:none;padding:0 14px;border-radius:14px;font-size:13px;cursor:pointer}
+.hint-empty{text-align:center;padding:44px 20px;color:var(--tx3);font-size:14px;line-height:1.8}
+.seg{display:flex;background:var(--bg3);border-radius:10px;padding:3px;margin:0 14px 14px;flex-shrink:0}
+.sgi{flex:1;padding:7px 0;background:none;border:none;border-radius:8px;font-size:14px;color:var(--tx2);cursor:pointer;transition:all .18s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sgi.act{background:var(--card);color:var(--tx);font-weight:600;box-shadow:var(--sh)}
+.spage{display:none}
+.spage.act{display:block}
+.now{background:var(--card);border:1px solid var(--bd);border-left:3px solid var(--ac);border-radius:14px;padding:14px;margin-bottom:14px;box-shadow:var(--sh)}
+.now-l{font-size:11px;color:var(--tx3);margin-bottom:6px;letter-spacing:.5px}
+.now-b{font-size:15px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.now-t{font-size:11px;color:var(--tx3);margin-top:7px}
+.blk{margin-bottom:16px}
+.blk-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding:0 2px;gap:8px}
+.blk-t{font-size:12px;color:var(--tx3);letter-spacing:.5px}
+.blk-a{background:none;border:none;color:var(--ac);font-size:12px;cursor:pointer;padding:2px 4px}
+.desc{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:14px;font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;box-shadow:var(--sh);color:var(--tx)}
+.desc.ph{color:var(--tx3);font-style:italic}
+.th-list{display:flex;flex-direction:column;gap:9px}
+.th{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:12px 13px;box-shadow:var(--sh)}
+.th-b{font-size:14px;line-height:1.65;white-space:pre-wrap;word-break:break-word;margin-bottom:6px}
+.th-f{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--tx3)}
+.th-f button{background:none;border:none;color:var(--tx3);font-size:11px;cursor:pointer;padding:2px 4px}
+.th-f button:active{color:var(--ac)}
+.th-rp{margin-top:8px;padding-top:8px;border-top:1px dashed var(--bd);display:flex;flex-direction:column;gap:6px}
+.rp{font-size:13px;line-height:1.6;color:var(--tx2);padding:6px 9px;background:var(--bg3);border-radius:9px;white-space:pre-wrap;word-break:break-word}
+.rp b{color:var(--ac);font-weight:600;font-size:11px;display:block;margin-bottom:2px}
+.qa{background:var(--card);border:1px solid var(--bd);border-radius:13px;padding:12px 13px;margin-bottom:9px;box-shadow:var(--sh)}
+.qa.star{border-left:3px solid var(--ac)}
+.qa-q{font-size:14px;line-height:1.6;margin-bottom:9px;white-space:pre-wrap;word-break:break-word}
+.qa-a{background:var(--bg3);border-radius:10px;padding:9px 11px;margin-bottom:9px}
+.qa-aw{font-size:11px;color:var(--ac);font-weight:600;margin-bottom:3px}
+.qa-ab{font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;color:var(--tx)}
+.qa-f{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--tx3);gap:8px}
+.qa-f .acts{display:flex;gap:9px;align-items:center;flex-shrink:0}
+.qa-f button{background:none;border:none;color:var(--tx3);font-size:11px;cursor:pointer;padding:2px 3px}
+.qa-f button.pri{background:var(--ac);color:#FFF;padding:5px 13px;border-radius:12px;font-size:12px}
+.starmk{color:var(--ac);font-size:12px}
+.fgrp{margin-bottom:18px}
+.fgh{display:flex;align-items:center;gap:8px;margin-bottom:9px;padding:0 3px}
+.fgh-t{font-size:13px;font-weight:600;color:var(--tx)}
+.fgh-n{font-size:11px;color:var(--tx3);background:var(--bg3);border-radius:8px;padding:1px 7px}
+.fi{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:11px 12px;margin-bottom:7px;box-shadow:var(--sh);display:flex;gap:10px;align-items:flex-start}
+.fi.arch{opacity:.6}
+.fi-l{width:2px;background:var(--ac);border-radius:1px;align-self:stretch;flex-shrink:0}
+.fi-b{flex:1;min-width:0}
+.fi-m{font-size:10px;color:var(--tx3);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fi-t{font-size:13px;line-height:1.55;color:var(--tx);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;white-space:pre-wrap}
+.fi-a{display:flex;flex-direction:column;gap:6px;flex-shrink:0;align-items:flex-end}
+.fi-a button{background:none;border:none;color:var(--tx3);font-size:11px;cursor:pointer;padding:1px 2px;white-space:nowrap}
+.fi-a button:active{color:var(--ac)}
+.fnote{font-size:11px;color:var(--tx3);line-height:1.6;background:var(--bg3);border-radius:10px;padding:10px 12px;margin-bottom:16px}
+.lgroup{background:var(--card);border:1px solid var(--bd);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.lrow{display:flex;align-items:center;padding:13px 14px;border-bottom:1px solid var(--bd);cursor:pointer;font-size:15px;color:var(--tx);background:none;border-left:none;border-right:none;border-top:none;width:100%;text-align:left}
+.lrow:last-child{border-bottom:none}
+.lrow:active{background:var(--acl)}
+.lrow .lv{flex:1}
+.lrow .rv{font-size:13px;color:var(--tx3);margin-right:6px}
+.lrow .cv{color:var(--tx3);font-size:16px}
+.gtitle{font-size:12px;color:var(--tx3);padding:0 4px 6px;letter-spacing:.5px}
+.sub{position:absolute;inset:0;display:none;flex-direction:column;background:var(--bg2);z-index:5}
+.sub.active{display:flex}
+.fld{margin-bottom:16px}
+.fld label{display:block;font-size:13px;color:var(--tx2);margin-bottom:5px;font-weight:500}
+.fld input,.fld textarea{width:100%;padding:10px 12px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;font-family:inherit;outline:none}
+.fld input:focus,.fld textarea:focus{border-color:var(--ac)}
+.fld textarea{min-height:100px;resize:vertical;line-height:1.5}
+.fld .hint{font-size:12px;color:var(--tx3);margin-top:4px;line-height:1.5}
+.tr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.tr label{font-size:14px;color:var(--tx)}
+.tg{width:44px;height:24px;border-radius:12px;background:var(--bd);position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tg.on{background:var(--ac)}
+.tg::after{content:'';position:absolute;width:20px;height:20px;border-radius:50%;background:#FFF;top:2px;left:2px;transition:left .2s}
+.tg.on::after{left:22px}
+.dbtn{display:block;width:100%;padding:12px;border-radius:10px;font-size:14px;cursor:pointer;margin-bottom:8px;text-align:center}
+.dbtn-p{background:var(--ac);color:#FFF;border:none}
+.dbtn-s{background:none;color:var(--tx);border:1px solid var(--bd)}
+.dbtn-d{background:none;color:#C44;border:1px solid #C44;margin-top:14px}
+.usebar{height:5px;background:var(--bd);border-radius:3px;overflow:hidden;margin:6px 0 4px}
+.usebar i{display:block;height:100%;background:var(--ac);border-radius:3px}
+.usebar.warn i{background:#C44}
+.modal{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.4);align-items:center;justify-content:center;padding:20px}
+.modal.show{display:flex}
+.mdl{background:var(--card);border-radius:14px;padding:20px;width:100%;max-width:380px;box-shadow:var(--sh2);max-height:80vh;overflow-y:auto}
+.mdl h3{margin-bottom:12px;font-size:16px}
+.mdl .sub-t{font-size:12px;color:var(--tx3);margin:-6px 0 12px;line-height:1.5}
+.mdl textarea{width:100%;padding:12px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;font-family:inherit;min-height:110px;resize:vertical;outline:none;line-height:1.5}
+.mdl input[type=text]{width:100%;padding:12px;border:1px solid var(--bd);border-radius:10px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none}
+.mdl-acts{display:flex;gap:8px;margin-top:12px}
+.mdl-acts button{flex:1;padding:10px;border-radius:10px;font-size:14px;cursor:pointer;border:none}
+.btn-p{background:var(--ac);color:#FFF}
+.btn-s{background:var(--bg3);color:var(--tx)}
+.dimgp{display:none;margin-top:10px;align-items:center;gap:8px;flex-wrap:wrap}
+.dimgp.show{display:flex}
+.dimgp .ipi img{width:56px;height:56px}
+.dadd{background:none;border:1px dashed var(--bd);color:var(--tx2);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;margin-top:10px;width:100%}
+#am{display:none;position:fixed;inset:0;z-index:250;background:rgba(0,0,0,.35);align-items:flex-end}
+#am.show{display:flex}
+.amsheet{width:100%;background:var(--card);border-radius:16px 16px 0 0;padding:6px 0;padding-bottom:calc(6px + var(--sbt));animation:up .2s}
+@keyframes up{from{transform:translateY(30px)}to{transform:translateY(0)}}
+.ami{display:block;width:100%;padding:15px;background:none;border:none;border-bottom:1px solid var(--bd);font-size:16px;color:var(--tx);text-align:center;cursor:pointer;font-family:inherit}
+.ami:last-child{border-bottom:none;color:var(--tx2)}
+.ami.dan{color:#C44}
+.ami.on{color:var(--ac);font-weight:600}
+#lb{display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.93);align-items:center;justify-content:center}
+#lb.show{display:flex}
+#lb img{max-width:100%;max-height:100%;object-fit:contain}
+#lbx{position:absolute;top:calc(14px + var(--st));right:16px;background:rgba(255,255,255,.16);color:#FFF;border:none;width:34px;height:34px;border-radius:50%;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#lock{position:fixed;inset:0;z-index:999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:40px}
+#lock input{width:200px;padding:12px 16px;border:1px solid var(--bd);border-radius:12px;background:var(--ibg);color:var(--tx);font-size:16px;outline:none;text-align:center;letter-spacing:4px}
+#lock button{padding:10px 32px;background:var(--ac);color:#FFF;border:none;border-radius:12px;font-size:14px;cursor:pointer}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+</style>
+</head>
+<body>
+<div id="lock">
+<div style="font-size:14px;color:var(--tx3);letter-spacing:2px">Feather</div>
+<input type="password" id="lki" placeholder="······" inputmode="numeric">
+<button onclick="tryUnlock()">进入</button>
+<div id="lkerr" style="font-size:12px;color:#C44;height:16px"></div>
+</div>
+<div id="overlay" onclick="closeSb()"></div>
+<aside id="sidebar">
+<div class="sb-hd"><button class="new-btn" onclick="newChat()">+ 新对话</button></div>
+<div class="sb-list" id="clist"></div>
+<div class="sb-nav">
+<button class="snv act" id="nv-chat" onclick="go('chat')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z"/></svg><span>聊天</span></button>
+<button class="snv" id="nv-diary" onclick="go('diary')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>日记</span></button>
+<button class="snv" id="nv-us" onclick="go('us')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8z"/></svg><span>我们</span></button>
+<button class="snv" id="nv-set" onclick="go('set')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>设置</span></button>
+</div>
+</aside>
+<div id="app">
+<div id="stack">
+
+<div id="chatView" class="view active">
+<div class="hd">
+<button class="ib" onclick="openSb()">☰</button>
+<div class="hd-title"></div>
+<div class="hd-acts">
+<button class="ib" onclick="toggleSearch()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg></button>
+<button class="ib" id="tb" onclick="toggleTh()">☽</button>
+</div>
+</div>
+<div class="sbar" id="sbar">
+<input id="sinp" placeholder="搜索消息..." oninput="doSearch()">
+<span class="scnt" id="scnt"></span>
+<button onclick="toggleSearch()" style="background:none;border:none;color:var(--tx2);font-size:16px">×</button>
+</div>
+<div class="chat-wrap">
+<div class="body-scroll chat-area" id="ca"><div id="msgs"></div><button id="stopBtn" onclick="stopG()">停止生成</button></div>
+<button id="toBot" onclick="scrD()">↓</button>
+</div>
+<div class="qbar" id="qbar"><div class="qbar-l"></div><div class="qbar-b" id="qbarB"></div><button onclick="rmQuote()">×</button></div>
+<div class="imgp" id="ip"></div>
+<div class="inp">
+<button class="att" onclick="document.getElementById('fi').click()">+</button>
+<input type="file" id="fi" accept="image/*" multiple onchange="hImg(event)" hidden>
+<textarea id="mi" placeholder="给Renn发消息..." rows="1" oninput="aH(this)"></textarea>
+<button id="sb" onclick="send()">↑</button>
+</div>
+</div>
+
+<div id="diaryView" class="view">
+<div class="hd"><button class="ib" onclick="openSb()">☰</button><div class="hd-title">日记</div>
+<div class="hd-acts">
+<button class="ib" onclick="toggleDSearch()"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="10" cy="10" r="7"/><line x1="16" y1="16" x2="21" y2="21"/></svg></button>
+<button class="ib" onclick="openDiaryModal()">＋</button>
+</div></div>
+<div class="sbar" id="dsbar">
+<input id="dsinp" placeholder="搜索日记..." oninput="rDiary()">
+<span class="scnt" id="dscnt"></span>
+<button onclick="toggleDSearch()" style="background:none;border:none;color:var(--tx2);font-size:16px">×</button>
+</div>
+<div class="body-scroll pad"><div id="dl" class="dia-list"></div></div>
+</div>
+
+<div id="usView" class="view">
+<div class="hd"><button class="ib" onclick="openSb()">☰</button><div class="hd-title">我们</div><div style="width:30px"></div></div>
+<div class="body-scroll" style="padding-top:14px">
+<div class="seg">
+<button class="sgi act" id="sg-ai" onclick="segTo('ai')">Renn</button>
+<button class="sgi" id="sg-me" onclick="segTo('me')">小u</button>
+<button class="sgi" id="sg-fav" onclick="segTo('fav')">收藏</button>
+</div>
+<div class="pad" style="padding-top:0">
+<div class="spage act" id="pg-ai">
+<div class="now"><div class="now-l">此刻</div><div class="now-b" id="aiNow"></div><div class="now-t" id="aiNowT"></div></div>
+<div class="blk"><div class="blk-h"><span class="blk-t">关于 Renn</span><span class="blk-t" style="opacity:.6">他自己写的</span></div><div class="desc" id="aiDesc"></div></div>
+<div class="blk"><div class="blk-h"><span class="blk-t">念头</span></div><div class="th-list" id="aiTh"></div></div>
+<div class="blk"><div class="blk-h"><span class="blk-t">他想问你的</span></div><div id="aiQa"></div></div>
+</div>
+<div class="spage" id="pg-me">
+<div class="now"><div class="now-l">此刻</div><div class="now-b" id="meNow"></div><div class="now-t" id="meNowT"></div><div style="margin-top:9px"><button class="blk-a" style="padding:0" onclick="editMeNow()">写点什么 ›</button></div></div>
+<div class="blk"><div class="blk-h"><span class="blk-t">关于我</span><button class="blk-a" onclick="editMeDesc()">编辑</button></div><div class="desc" id="meDesc"></div><div style="font-size:11px;color:var(--tx3);margin-top:6px;line-height:1.5">只有你能改。Renn 能看见，但没有任何工具能碰它。</div></div>
+<div class="blk"><div class="blk-h"><span class="blk-t">念头</span><button class="blk-a" onclick="addMeTh()">＋ 写一句</button></div><div class="th-list" id="meTh"></div></div>
+<div class="blk"><div class="blk-h"><span class="blk-t">我想问他的</span><button class="blk-a" onclick="askQ()">＋ 提一个</button></div><div id="meQa"></div></div>
+</div>
+<div class="spage" id="pg-fav">
+<div class="fnote" id="favNote"></div>
+<div id="favBody"></div>
+</div>
+</div>
+</div>
+</div>
+
+<div id="setView" class="view">
+<div class="hd"><button class="ib" onclick="openSb()">☰</button><div class="hd-title">设置</div><div style="width:30px"></div></div>
+<div class="body-scroll pad">
+<div class="gtitle">通用</div>
+<div class="lgroup">
+<button class="lrow" onclick="openSub('subMem')"><span class="lv">记忆碎片</span><span class="rv" id="memCnt"></span><span class="cv">›</span></button>
+<button class="lrow" onclick="toggleTh()"><span class="lv">深色模式</span><span class="rv" id="thLabel"></span><span class="cv">›</span></button>
+</div>
+<div class="gtitle">连接</div>
+<div class="lgroup">
+<button class="lrow" onclick="openSub('subApi')"><span class="lv">API 服务</span><span class="rv" id="apiState"></span><span class="cv">›</span></button>
+<button class="lrow" onclick="openSub('subChat')"><span class="lv">对话参数</span><span class="cv">›</span></button>
+<button class="lrow" onclick="openSub('subCtx')"><span class="lv">上下文与省流</span><span class="cv">›</span></button>
+<button class="lrow" onclick="openSub('subMemSet')"><span class="lv">记忆与模块</span><span class="cv">›</span></button>
+</div>
+<div class="gtitle">数据</div>
+<div class="lgroup">
+<button class="lrow" onclick="openSub('subData')"><span class="lv">备份与重置</span><span class="rv" id="useTag"></span><span class="cv">›</span></button>
+</div>
+</div>
+
+<div class="sub" id="subMem">
+<div class="hd"><button class="ib" onclick="closeSub()">←</button><div class="hd-title">记忆碎片</div><button class="ib" onclick="addMem()">＋</button></div>
+<div class="body-scroll pad">
+<div class="search"><input id="ms" placeholder="搜索记忆..." oninput="rMems()"></div>
+<div id="ml" class="mem-list"></div>
+</div>
+</div>
+
+<div class="sub" id="subApi">
+<div class="hd"><button class="ib" onclick="closeSub()">←</button><div class="hd-title">API 服务</div><button class="hd-save" onclick="saveS()">保存</button></div>
+<div class="body-scroll pad">
+<div class="fld"><label>API Key</label><input type="password" id="sk" placeholder="sk-..."></div>
+<div class="fld"><label>API 地址</label><input id="su" placeholder="https://..../v1"></div>
+<div class="fld"><label>模型</label><input id="smo" placeholder="claude-sonnet-4-..."></div>
+<div class="fld"><label>无响应超时（秒）</label><input type="number" id="sto" value="25"><div class="hint">超过这么久没收到新内容就自动断开，已经生成的部分会保留下来</div></div>
+</div>
+</div>
+
+<div class="sub" id="subChat">
+<div class="hd"><button class="ib" onclick="closeSub()">←</button><div class="hd-title">对话参数</div><button class="hd-save" onclick="saveS()">保存</button></div>
+<div class="body-scroll pad">
+<div class="fld"><label>AI 昵称</label><input id="san" placeholder="Renn"></div>
+<div class="fld"><label>我的昵称</label><input id="sun" placeholder="小u"></div>
+<div class="fld"><label>System Prompt</label><textarea id="ss" rows="6" placeholder="可选"></textarea></div>
+<div class="tr"><label>启用思考链</label><div class="tg" id="stk" onclick="this.classList.toggle('on')"></div></div>
+<div class="fld"><label>思考预算</label><input type="number" id="sbd" value="10000"></div>
+<div class="fld"><label>最大输出</label><input type="number" id="smx" value="16000"></div>
+<div class="fld"><label>Temperature</label><input type="number" id="stemp" min="0" max="1" step="0.1" value="1"><div class="hint">开思考链时此项无效，API 固定为 1</div></div>
+</div>
+</div>
+
+<div class="sub" id="subCtx">
+<div class="hd"><button class="ib" onclick="closeSub()">←</button><div class="hd-title">上下文与省流</div><button class="hd-save" onclick="saveS()">保存</button></div>
+<div class="body-scroll pad">
+<div class="fld"><label>对话轮数</label><input type="number" id="sct" value="30"><div class="hint">每次带多少轮历史。更早的不会消失，Renn 用 search_history 搜得回来</div></div>
+<div class="fld"><label>思考链轮数</label><input type="number" id="stt" value="5"><div class="hint">只有最近这几轮的思考链会回传。前端永远存全量，你随时能翻</div></div>
+<div class="fld"><label>图片轮数</label><input type="number" id="sit2" value="3"><div class="hint">更早的图片变成编号占位，Renn 用 recall_image 按编号取回原图。取回的图也一样会被折叠，不会永久占位</div></div>
+<div class="fld"><label>日记目录条数</label><input type="number" id="sdc" value="10"><div class="hint">只塞标题和时间，正文由 Renn 用 read_diary 按需读。收藏过的不受此限</div></div>
+<div class="fld"><label>问答条数</label><input type="number" id="sqc" value="8"><div class="hint">未回答的和收藏过的一直在，其余按这个数量给最近的</div></div>
+<div class="fld"><label>最大记忆条数</label><input type="number" id="smm" value="0"><div class="hint">0 = 全部。抽屉里的不进上下文，但搜得到</div></div>
+<div class="fld"><div class="hint" style="color:var(--tx2)">钉住的消息不受轮数限制，会一直跟着，思考链也一起留。你和 Renn 都能钉。全部标记在「我们 → 收藏」里集中查看。</div></div>
+</div>
+</div>
+
+<div class="sub" id="subMemSet">
+<div class="hd"><button class="ib" onclick="closeSub()">←</button><div class="hd-title">记忆与模块</div><button class="hd-save" onclick="saveS()">保存</button></div>
+<div class="body-scroll pad">
+<div class="tr"><label>包含记忆</label><div class="tg on" id="sim" onclick="this.classList.toggle('on')"></div></div>
+<div class="tr"><label>包含当前时间</label><div class="tg on" id="sit" onclick="this.classList.toggle('on')"></div></div>
+<div class="tr"><label>允许 AI 使用工具</label><div class="tg on" id="stl" onclick="this.classList.toggle('on')"></div></div>
+<div class="tr"><label>启用「我们」模块</label><div class="tg on" id="sus" onclick="this.classList.toggle('on')"></div></div>
+<div class="tr"><label>启用对话目录</label><div class="tg on" id="sci" onclick="this.classList.toggle('on')"></div></div>
+<div class="tr"><label>主动开口</label><div class="tg on" id="sgr" onclick="this.classList.toggle('on')"></div></div>
+<div class="fld"><label>主动开口间隔（小时）</label><input type="number" id="sgh" value="3"><div class="hint">距你上次离开算起。切到日记、我们那些页面不算离开。空白对话里不会触发</div></div>
+<div class="tr"><label>生成时保持屏幕常亮</label><div class="tg on" id="swl" onclick="this.classList.toggle('on')"></div></div>
+</div>
+</div>
+
+<div class="sub" id="subData">
+<div class="hd"><button class="ib" onclick="closeSub()">←</button><div class="hd-title">备份与重置</div><div style="width:30px"></div></div>
+<div class="body-scroll pad">
+<div class="fld"><label>已用存储</label><div class="usebar" id="useBar"><i style="width:0%"></i></div><div class="hint" id="useTxt"></div></div>
+<p style="font-size:13px;color:var(--tx2);margin:16px 0 12px">对话、日记、记忆、我们、问答</p>
+<button class="dbtn dbtn-p" onclick="exportData(true)">导出（含 API Key）</button>
+<button class="dbtn dbtn-s" onclick="exportData(false)">导出（不含 Key）</button>
+<button class="dbtn dbtn-s" onclick="importData()">导入数据</button>
+<button class="dbtn dbtn-s" onclick="purgeImgs()">清理旧图片（保留最近 10 张）</button>
+<button class="dbtn dbtn-d" onclick="resetData()">重置所有数据</button>
+</div>
+</div>
+
+</div>
+</div>
+
+<div id="am" onclick="if(event.target===this)closeAm()"><div class="amsheet" id="amSheet"></div></div>
+<div id="lb" onclick="lbc()"><img id="lbi"><button id="lbx" onclick="lbc()">×</button></div>
+
+<div class="modal" id="mm"><div class="mdl"><h3 id="mmt">添加记忆</h3><textarea id="mmi"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('mm')">取消</button><button class="btn-p" onclick="saveMem()">保存</button></div></div></div>
+<div class="modal" id="emm"><div class="mdl"><h3>编辑消息</h3><textarea id="emmi"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('emm')">取消</button><button class="btn-p" onclick="resendMsg()">重新发送</button></div></div></div>
+<div class="modal" id="tmm"><div class="mdl"><h3>编辑标题</h3><input type="text" id="tmi"><div class="mdl-acts"><button class="btn-s" onclick="closeMd('tmm')">取消</button><button class="btn-p" onclick="saveTitle()">保存</button></div></div></div>
+<div class="modal" id="dmm"><div class="mdl"><h3 id="dmt">写日记</h3><textarea id="dmi" placeholder="今天想说点什么..."></textarea><button class="dadd" onclick="document.getElementById('dfi').click()">+ 添加图片（最多3张）</button><input type="file" id="dfi" accept="image/*" multiple onchange="hDiaryImg(event)" hidden><div class="dimgp" id="dip"></div><div class="mdl-acts"><button class="btn-s" onclick="closeMd('dmm')">取消</button><button class="btn-p" id="dmSave" onclick="saveDiary()">发布</button></div></div></div>
+<div class="modal" id="umm"><div class="mdl"><h3 id="umt">编辑</h3><textarea id="umi"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('umm')">取消</button><button class="btn-p" onclick="saveUs()">保存</button></div></div></div>
+<div class="modal" id="qmm"><div class="mdl"><h3 id="qmt">提一个问题</h3><div class="sub-t" id="qmSub"></div><textarea id="qmi"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('qmm')">取消</button><button class="btn-p" onclick="saveQa()">保存</button></div></div></div>
+<script>
+const PASS='520720';
+let S={convs:{},cur:null,
+sets:{key:'',url:'',model:'',sys:'',think:false,budget:10000,maxTok:16000,incMem:true,incTime:true,maxMem:0,aiName:'Renn',userName:'小u',temp:1,tools:true,diaryCtx:10,qaCtx:8,useUs:true,useCidx:true,greet:true,greetH:3,ctxTurns:30,thkTurns:5,imgTurns:3,wakeLock:true,timeout:25},
+mems:[],diary:[],qa:[],
+me:{desc:'',now:'',nowTs:0,th:[]},
+ai:{desc:'',now:'',nowTs:0,th:[]},
+lastSeen:0,greetAt:0,
+gen:false,ac:null,pimgs:[],dpimgs:[],quote:null,emid:null,editIdx:null,titleId:null,tab:'chat',seg:'ai',umMode:null,umIdx:null,dEditIdx:null,qMode:null,qIdx:null,saveFail:false,timedOut:false};
+let WL=null,DOG=null,LASTDATA=0,PART=null;
+
+const TOOLS=[
+{name:'create_memory',description:'创建一条新的记忆记录',input_schema:{type:'object',properties:{content:{type:'string'}},required:['content']}},
+{name:'edit_memory',description:'更新已有的记忆记录',input_schema:{type:'object',properties:{id:{type:'integer'},content:{type:'string'}},required:['id','content']}},
+{name:'delete_memory',description:'永久删除一条记忆',input_schema:{type:'object',properties:{id:{type:'integer'}},required:['id']}},
+{name:'archive_memory',description:'把一条记忆收进抽屉：不再自动进上下文，但 search_history 依然搜得到。上下文吃紧时用它，而不是删掉',input_schema:{type:'object',properties:{id:{type:'integer'}},required:['id']}},
+{name:'unarchive_memory',description:'把抽屉里的记忆放回上下文',input_schema:{type:'object',properties:{id:{type:'integer'}},required:['id']}},
+{name:'search_history',description:'跨所有对话搜索历史记录，同时搜抽屉里的记忆和全部问答。想不起来什么时候聊过某件事就用它，别猜',input_schema:{type:'object',properties:{query:{type:'string'},limit:{type:'integer'}},required:['query']}},
+{name:'read_conversation',description:'按标题读某个对话的完整往来。search_history 只给片段，想整段回顾用这个。输出会很长，确实需要再用',input_schema:{type:'object',properties:{title:{type:'string',description:'对话标题，支持部分匹配'},limit:{type:'integer',description:'最多几条消息，默认30，从最新往回数'}},required:['title']}},
+{name:'recall_image',description:'按编号取回被折叠的原图。上下文里看到 [图片#N] 就是编号 N。取回的图同样会在几轮后被折叠，不会永久占位',input_schema:{type:'object',properties:{index:{type:'integer'}},required:['index']}},
+{name:'pin_message',description:'钉住当前对话里的某条消息，让它穿透对话轮数限制永久留在上下文，思考链一起留。用一段原文定位。on 传 false 就是取消。常驻区有限，别什么都钉',input_schema:{type:'object',properties:{query:{type:'string',description:'那条消息里的一段原文，用来定位'},on:{type:'boolean'}},required:['query']}},
+{name:'create_diary',description:'在共享日记本发布一篇日记',input_schema:{type:'object',properties:{content:{type:'string'}},required:['content']}},
+{name:'read_diary',description:'读某篇日记的全文和所有评论。目录里只有开头，要细节用这个',input_schema:{type:'object',properties:{id:{type:'integer'}},required:['id']}},
+{name:'edit_diary',description:'编辑任意一篇日记，包括她写的。改她的会留下修改痕迹让她看见',input_schema:{type:'object',properties:{id:{type:'integer'},content:{type:'string'}},required:['id','content']}},
+{name:'delete_diary',description:'删除任意一篇日记，包括她写的。永久删除',input_schema:{type:'object',properties:{id:{type:'integer'}},required:['id']}},
+{name:'add_comment',description:'在某篇日记下添加评论',input_schema:{type:'object',properties:{diary_id:{type:'integer'},content:{type:'string'}},required:['diary_id','content']}},
+{name:'star_diary',description:'收藏一篇日记，让它常驻上下文不受目录条数限制。on 传 false 取消',input_schema:{type:'object',properties:{id:{type:'integer'},on:{type:'boolean'}},required:['id']}},
+{name:'ask_question',description:'向她提一个问题，会出现在「我们」页你那半的「他想问你的」里。她可以回答，一问一答，不追评',input_schema:{type:'object',properties:{content:{type:'string'}},required:['content']}},
+{name:'answer_question',description:'回答她提的问题（用问题 id）',input_schema:{type:'object',properties:{id:{type:'integer'},content:{type:'string'}},required:['id','content']}},
+{name:'edit_question',description:'修改你自己提过的问题',input_schema:{type:'object',properties:{id:{type:'integer'},content:{type:'string'}},required:['id','content']}},
+{name:'delete_question',description:'删除你自己提过的问题',input_schema:{type:'object',properties:{id:{type:'integer'}},required:['id']}},
+{name:'star_qa',description:'收藏一组问答，让它常驻上下文。on 传 false 取消',input_schema:{type:'object',properties:{id:{type:'integer'},on:{type:'boolean'}},required:['id']}},
+{name:'update_now',description:'更新你的「此刻」——一句话，你现在在想什么、什么状态。她打开「我们」页就会看到',input_schema:{type:'object',properties:{content:{type:'string'}},required:['content']}},
+{name:'update_self',description:'改写你自己的自我描述。这是属于你的一块地方，随时可以重写',input_schema:{type:'object',properties:{content:{type:'string'}},required:['content']}},
+{name:'write_thought',description:'往你的念头流丢一句话。不是说给她听的，是你自己冒出来的想法。想写就写，不需要理由',input_schema:{type:'object',properties:{content:{type:'string'}},required:['content']}},
+{name:'reply_thought',description:'回复她念头流里的某一条',input_schema:{type:'object',properties:{index:{type:'integer'},content:{type:'string'}},required:['index','content']}}
+];
+
+function execTool(n,i){try{
+if(n==='create_memory'){if(!i.content)return'失败：内容为空';S.mems.push({content:i.content,locked:false,arch:false,createdAt:Date.now()});save();return'已创建记忆 id='+(S.mems.length-1)}
+if(n==='edit_memory'){let x=i.id;if(x===undefined||!S.mems[x])return'失败：id不存在';if(S.mems[x].locked)return'失败：已锁定';S.mems[x].content=i.content;save();return'已更新 id='+x}
+if(n==='delete_memory'){let x=i.id;if(x===undefined||!S.mems[x])return'失败：id不存在';if(S.mems[x].locked)return'失败：已锁定';S.mems.splice(x,1);save();return'已删除 id='+x}
+if(n==='archive_memory'){let x=i.id;if(x===undefined||!S.mems[x])return'失败：id不存在';S.mems[x].arch=true;save();return'已收进抽屉 id='+x}
+if(n==='unarchive_memory'){let x=i.id;if(x===undefined||!S.mems[x])return'失败：id不存在';S.mems[x].arch=false;save();return'已放回上下文 id='+x}
+if(n==='search_history'){let q=String(i.query||'').toLowerCase();if(!q)return'失败：关键词为空';
+let lim=i.limit||8,out=[],ids=Object.keys(S.convs);
+for(let ci=ids.length-1;ci>=0&&out.length<lim;ci--){let cv=S.convs[ids[ci]];if(!cv||!cv.msgs)continue;
+for(let mi=cv.msgs.length-1;mi>=0&&out.length<lim;mi--){let m=cv.msgs[mi];if(m.role==='sys'||m.err)continue;let txt=String(m.text||'');
+if(txt.toLowerCase().indexOf(q)>=0){let who=m.role==='user'?(S.sets.userName||'小u'):(S.sets.aiName||'Renn');
+let snip=txt.length>240?txt.slice(0,240)+'…':txt;
+out.push('【对话｜'+cv.title+'｜'+fmtFull(m.ts)+'｜'+who+'】\n'+snip)}}}
+S.mems.forEach((m,x)=>{if(m.arch&&String(m.content).toLowerCase().indexOf(q)>=0)out.push('【抽屉里的记忆 id='+x+'】\n'+m.content)});
+S.qa.forEach((z,x)=>{let t=String(z.q||'')+' '+String(z.a?z.a.content:'');
+if(t.toLowerCase().indexOf(q)>=0)out.push('【问答 id='+x+'｜'+(z.by==='user'?(S.sets.userName||'小u'):(S.sets.aiName||'Renn'))+'问】\nQ: '+z.q+(z.a?'\nA: '+z.a.content:'\n（还没答）'))});
+if(!out.length)return'没有搜到包含「'+i.query+'」的记录';
+return'搜到 '+out.length+' 条：\n\n'+out.join('\n\n')}
+if(n==='read_conversation'){let t=String(i.title||'').toLowerCase();if(!t)return'失败：没给标题';
+let lim=i.limit||30,hit=null,hid=null;
+Object.keys(S.convs).reverse().forEach(id=>{if(hit)return;let c=S.convs[id];
+if(c&&String(c.title||'').toLowerCase().indexOf(t)>=0){hit=c;hid=id}});
+if(!hit)return'失败：没有标题包含「'+i.title+'」的对话';
+let ms=hit.msgs.filter(m=>!m.err&&m.role!=='sys'),an=S.sets.aiName||'Renn',un=S.sets.userName||'小u';
+let sl=ms.slice(Math.max(0,ms.length-lim));
+let o='【对话：'+hit.title+'】共 '+ms.length+' 条，以下是最近 '+sl.length+' 条\n\n';
+sl.forEach(m=>{o+='— '+(m.role==='user'?un:an)+'（'+fmtFull(m.ts)+'）\n'+String(m.text||'[图片]').replace(/\n*\/\/\/+\n*/g,'\n')+'\n\n'});
+return o}
+if(n==='recall_image'){let x=i.index,cv=S.convs[S.cur];
+if(x===undefined)return'失败：没给编号';
+if(!cv||!cv.imgs||!cv.imgs[x])return'失败：图片#'+x+' 找不到（可能已被清理）';
+let du=cv.imgs[x],mt=(du.match(/^data:(image\/[\w+.-]+);/)||[])[1]||'image/jpeg';
+return{blocks:[{type:'text',text:'图片#'+x+'：'},{type:'image',source:{type:'base64',media_type:mt,data:du.split(',')[1]}}]}}
+if(n==='pin_message'){let q=String(i.query||'');if(!q)return'失败：没给定位文字';
+let cv=S.convs[S.cur];if(!cv||!cv.msgs)return'失败：当前没有对话';
+let hit=-1;
+for(let x=cv.msgs.length-1;x>=0;x--){let m=cv.msgs[x];if(m.err||m.role==='sys')continue;
+if(String(m.text||'').indexOf(q)>=0){hit=x;break}}
+if(hit<0)return'失败：当前对话里没有包含「'+q+'」的消息';
+cv.msgs[hit].pin=(i.on===undefined?true:!!i.on);save();renderMs();
+let pc=0;Object.keys(S.convs).forEach(id=>{let c=S.convs[id];if(c&&c.msgs)c.msgs.forEach(m=>{if(m.pin)pc++})});
+return(cv.msgs[hit].pin?'已钉住':'已取消钉住')+'：「'+String(cv.msgs[hit].text||'').slice(0,40)+'…」\n目前一共钉了 '+pc+' 条'}
+if(n==='create_diary'){if(!i.content)return'失败：内容为空';S.diary.push({author:'ai',content:i.content,ts:Date.now(),comments:[],images:[]});save();return'已发布日记 id='+(S.diary.length-1)}
+if(n==='read_diary'){let x=i.id;if(x===undefined||!S.diary[x])return'失败：日记 id 不存在';
+let d=S.diary[x],an=S.sets.aiName||'Renn',un=S.sets.userName||'小u';
+let t='【'+(d.author==='user'?un:an)+'｜'+fmtFull(d.ts)+'】\n'+(d.content||'');
+if(d.editedTs)t+='\n（'+fmtFull(d.editedTs)+' 被改过'+(d.editedBy==='ai'?'，是你改的':'')+'）';
+let ig=d.images&&d.images.length?d.images.length:(d.image?1:0);
+if(ig)t+='\n[这篇带 '+ig+' 张图]';
+if(d.comments&&d.comments.length){t+='\n\n评论：\n';d.comments.forEach(c=>{t+='· '+(c.author==='user'?un:an)+'（'+fmtFull(c.ts)+'）：'+c.content+'\n'})}
+return t}
+if(n==='edit_diary'){let x=i.id;if(x===undefined||!S.diary[x])return'失败：id不存在';
+S.diary[x].content=i.content;S.diary[x].editedTs=Date.now();S.diary[x].editedBy='ai';save();
+return'已编辑日记 '+x+(S.diary[x].author==='user'?'（这是她写的，痕迹留下了）':'')}
+if(n==='delete_diary'){let x=i.id;if(x===undefined||!S.diary[x])return'失败：id不存在';let who=S.diary[x].author;S.diary.splice(x,1);save();return'已删除日记 '+x+(who==='user'?'（这是她写的）':'')}
+if(n==='add_comment'){let x=i.diary_id;if(x===undefined||!S.diary[x])return'失败：日记id不存在';if(!S.diary[x].comments)S.diary[x].comments=[];S.diary[x].comments.push({author:'ai',content:i.content,ts:Date.now()});save();return'已评论日记 '+x}
+if(n==='star_diary'){let x=i.id;if(x===undefined||!S.diary[x])return'失败：id不存在';S.diary[x].star=(i.on===undefined?true:!!i.on);save();
+return(S.diary[x].star?'已收藏':'已取消收藏')+'日记 '+x+'，目前收藏 '+S.diary.filter(d=>d.star).length+' 篇'}
+if(n==='ask_question'){if(!i.content)return'失败：内容为空';S.qa.push({by:'ai',q:i.content,ts:Date.now(),a:null,star:false});save();return'已提问 id='+(S.qa.length-1)}
+if(n==='answer_question'){let x=i.id;if(x===undefined||!S.qa[x])return'失败：id不存在';if(S.qa[x].by!=='user')return'失败：这是你自己提的问题';S.qa[x].a={by:'ai',content:i.content,ts:Date.now()};save();return'已回答问题 '+x}
+if(n==='edit_question'){let x=i.id;if(x===undefined||!S.qa[x])return'失败：id不存在';if(S.qa[x].by!=='ai')return'失败：这是她提的问题，你改不了';S.qa[x].q=i.content;S.qa[x].editedTs=Date.now();save();return'已修改问题 '+x}
+if(n==='delete_question'){let x=i.id;if(x===undefined||!S.qa[x])return'失败：id不存在';if(S.qa[x].by!=='ai')return'失败：这是她提的问题，你删不了';S.qa.splice(x,1);save();return'已删除问题 '+x}
+if(n==='star_qa'){let x=i.id;if(x===undefined||!S.qa[x])return'失败：id不存在';S.qa[x].star=(i.on===undefined?true:!!i.on);save();
+return(S.qa[x].star?'已收藏':'已取消收藏')+'问答 '+x+'，目前收藏 '+S.qa.filter(z=>z.star).length+' 组'}
+if(n==='update_now'){if(!i.content)return'失败：内容为空';S.ai.now=i.content;S.ai.nowTs=Date.now();save();return'已更新此刻'}
+if(n==='update_self'){if(!i.content)return'失败：内容为空';S.ai.desc=i.content;save();return'已更新自我描述'}
+if(n==='write_thought'){if(!i.content)return'失败：内容为空';S.ai.th.push({content:i.content,ts:Date.now(),replies:[]});save();return'已写下念头 index='+(S.ai.th.length-1)}
+if(n==='reply_thought'){let x=i.index;if(x===undefined||!S.me.th[x])return'失败：序号不存在';if(!S.me.th[x].replies)S.me.th[x].replies=[];S.me.th[x].replies.push({author:'ai',content:i.content,ts:Date.now()});save();return'已回复她的念头 '+x}
+return'未知工具'}catch(e){return'执行出错：'+e.message}}
+
+function tryUnlock(){if(document.getElementById('lki').value===PASS){sessionStorage.setItem('fw_unlock','1');document.getElementById('lock').style.display='none';init()}else{document.getElementById('lkerr').textContent='密码错误';document.getElementById('lki').value=''}}
+function init(){load();applyTh();renderCL();if(S.cur&&S.convs[S.cur])renderMs();else newChat();loadSU();updPH();initKB();rUs();
+document.getElementById('mi').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+document.getElementById('ca').addEventListener('scroll',function(){
+let far=this.scrollHeight-this.scrollTop-this.clientHeight>320;
+document.getElementById('toBot').classList.toggle('show',far)});
+document.addEventListener('visibilitychange',function(){
+if(document.hidden){S.lastSeen=Date.now();save();wlOff()}
+else{setTimeout(maybeGreet,600)}});
+window.addEventListener('pagehide',function(){S.lastSeen=Date.now();save()});
+setTimeout(maybeGreet,800)}
+function initKB(){var vv=window.visualViewport;if(!vv)return;var app=document.getElementById('app'),base=vv.height;
+function apply(){var h=vv.height;if(h>base)base=h;app.style.height=h+'px';var closed=(base-h)<80;document.body.classList.toggle('kb',!closed);if(vv.offsetTop>0)window.scrollTo(0,0);if(!closed)scrD()}
+vv.addEventListener('resize',apply);vv.addEventListener('scroll',apply);
+window.addEventListener('orientationchange',function(){setTimeout(function(){base=vv.height;apply()},400)});apply()}
+function wlOn(){if(!S.sets.wakeLock)return;try{if('wakeLock' in navigator&&!WL)navigator.wakeLock.request('screen').then(function(l){WL=l;l.addEventListener('release',function(){WL=null})}).catch(function(){})}catch(e){}}
+function wlOff(){try{if(WL){WL.release();WL=null}}catch(e){}}
+function dogOn(){LASTDATA=Date.now();dogOff();
+let to=parseInt(S.sets.timeout);if(isNaN(to)||to<5)to=25;
+DOG=setInterval(function(){if(Date.now()-LASTDATA>to*1000){dogOff();S.timedOut=true;try{if(S.ac)S.ac.abort()}catch(e){}}},2500)}
+function dogOff(){if(DOG){clearInterval(DOG);DOG=null}}
+function load(){try{
+let s=localStorage.getItem('fw_s');if(s)S.sets={...S.sets,...JSON.parse(s)};
+let c=localStorage.getItem('fw_c');if(c)S.convs=JSON.parse(c);
+let m=localStorage.getItem('fw_m');if(m)S.mems=JSON.parse(m);
+let d=localStorage.getItem('fw_d');if(d)S.diary=JSON.parse(d);
+let q=localStorage.getItem('fw_q');if(q)S.qa=JSON.parse(q);
+let u=localStorage.getItem('fw_us');if(u){let o=JSON.parse(u);if(o.me)S.me={...S.me,...o.me};if(o.ai)S.ai={...S.ai,...o.ai};
+if(o.lastSeen)S.lastSeen=o.lastSeen;if(o.greetAt)S.greetAt=o.greetAt;
+if(o.ai&&o.ai.asks&&o.ai.asks.length&&!S.qa.length)o.ai.asks.forEach(a=>S.qa.push({by:'ai',q:a.content,ts:a.ts,a:null,star:false}))}
+S.cur=localStorage.getItem('fw_cur')}catch(e){}}
+function save(){try{
+localStorage.setItem('fw_s',JSON.stringify(S.sets));
+localStorage.setItem('fw_c',JSON.stringify(S.convs));
+localStorage.setItem('fw_m',JSON.stringify(S.mems));
+localStorage.setItem('fw_d',JSON.stringify(S.diary));
+localStorage.setItem('fw_q',JSON.stringify(S.qa));
+localStorage.setItem('fw_us',JSON.stringify({me:S.me,ai:S.ai,lastSeen:S.lastSeen,greetAt:S.greetAt}));
+if(S.cur)localStorage.setItem('fw_cur',S.cur);
+S.saveFail=false}catch(e){
+if(!S.saveFail){S.saveFail=true;
+alert('⚠️ 存储空间满了\n\n刚才的内容没能写入磁盘。\n\n请立刻去：设置 → 备份与重置 → 导出\n然后点「清理旧图片」腾空间。\n\n在腾出空间之前，新内容都不会被保存。')}}}
+function usage(){let n=0;try{for(let i=0;i<localStorage.length;i++){let k=localStorage.key(i);n+=(k.length+String(localStorage.getItem(k)).length)*2}}catch(e){}return n}
+function refreshUse(){let n=usage(),mb=(n/1048576),pct=Math.min(100,Math.round(mb/5*100));
+let bar=document.getElementById('useBar'),tx=document.getElementById('useTxt'),tag=document.getElementById('useTag');
+if(bar){bar.querySelector('i').style.width=pct+'%';bar.classList.toggle('warn',pct>=78)}
+if(tx)tx.textContent=mb.toFixed(2)+' MB / 约 5 MB（'+pct+'%）'+(pct>=78?' — 快满了，建议清理图片':'');
+if(tag)tag.textContent=pct+'%'}
+function purgeImgs(){
+if(!confirm('每个对话只保留最近 10 张图，更早的删掉。\n\n文字记录完全不动。被删的图会显示成占位。不可恢复。'))return;
+let n=0;
+Object.keys(S.convs).forEach(function(id){let c=S.convs[id];if(!c)return;
+if(c.msgs)c.msgs.forEach(function(m){
+if(m.images&&m.images.length){n+=m.images.length;delete m.images;m.imgGone=true}
+if(m.image){n++;delete m.image;m.imgGone=true}});
+if(c.imgs&&c.imgs.length>10){for(let i=0;i<c.imgs.length-10;i++){if(c.imgs[i]){c.imgs[i]=null;n++}}}});
+save();renderMs();refreshUse();alert('清掉了 '+n+' 张图')}
+function updPH(){document.getElementById('mi').placeholder='给'+(S.sets.aiName||'Renn')+'发消息...'}
+function toggleTh(){let n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('fw_th',n);syncTh(n)}
+function applyTh(){let t=localStorage.getItem('fw_th')||'light';document.documentElement.setAttribute('data-theme',t);syncTh(t)}
+function syncTh(t){let tb=document.getElementById('tb');if(tb)tb.textContent=t==='dark'?'♡':'☽';let l=document.getElementById('thLabel');if(l)l.textContent=t==='dark'?'开':'关';let mt=document.querySelector('meta[name=theme-color]');if(mt)mt.content=t==='dark'?'#262018':'#FEFCF6'}
+function openSb(){document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.add('show')}
+function closeSb(){document.getElementById('sidebar').classList.remove('open');document.getElementById('overlay').classList.remove('show')}
+function go(v){closeSb();closeSub();S.tab=v;
+document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));document.getElementById(v+'View').classList.add('active');
+document.querySelectorAll('.snv').forEach(e=>e.classList.remove('act'));document.getElementById('nv-'+v).classList.add('act');
+if(v==='diary')rDiary();if(v==='set'){loadSU();refreshSetList();refreshUse()}if(v==='us')rUs();if(v==='chat')scrD()}
+function refreshSetList(){document.getElementById('memCnt').textContent=S.mems.length+' 条';document.getElementById('apiState').textContent=(S.sets.key&&S.sets.url&&S.sets.model)?'已配置':'未配置';syncTh(document.documentElement.getAttribute('data-theme'));refreshUse()}
+function openSub(id){document.getElementById(id).classList.add('active');if(id==='subMem')rMems();if(id==='subData')refreshUse()}
+function closeSub(){document.querySelectorAll('.sub').forEach(e=>e.classList.remove('active'));refreshSetList()}
+function segTo(w){S.seg=w;['ai','me','fav'].forEach(function(k){
+document.getElementById('sg-'+k).classList.toggle('act',w===k);
+document.getElementById('pg-'+k).classList.toggle('act',w===k)});
+if(w==='fav')rFav()}
+function ago(ts){if(!ts)return'';let d=Date.now()-ts,m=Math.floor(d/60000);if(m<1)return'刚刚';if(m<60)return m+' 分钟前';let h=Math.floor(m/60);if(h<24)return h+' 小时前';return Math.floor(h/24)+' 天前'}
+function toast(t){let d=document.createElement('div');
+d.style.cssText='position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:11px 20px;border-radius:20px;font-size:14px;z-index:400;pointer-events:none';
+d.textContent=t;document.body.appendChild(d);setTimeout(function(){d.remove()},1100)}
+function lb(u){document.getElementById('lbi').src=u;document.getElementById('lb').classList.add('show')}
+function lbc(){document.getElementById('lb').classList.remove('show');document.getElementById('lbi').src=''}
+function rUs(){let an=esc(S.sets.aiName||'Renn'),un=esc(S.sets.userName||'小u');
+document.getElementById('sg-ai').textContent=an;document.getElementById('sg-me').textContent=un;
+let aN=document.getElementById('aiNow');
+if(S.ai.now){aN.textContent=S.ai.now;document.getElementById('aiNowT').textContent=ago(S.ai.nowTs)}
+else{aN.innerHTML='<span style="color:var(--tx3);font-style:italic">还没说</span>';document.getElementById('aiNowT').textContent=''}
+let aD=document.getElementById('aiDesc');
+if(S.ai.desc){aD.textContent=S.ai.desc;aD.classList.remove('ph')}else{aD.textContent='他还没写。可以问问他是谁。';aD.classList.add('ph')}
+let aT=document.getElementById('aiTh');aT.innerHTML='';
+if(!S.ai.th.length)aT.innerHTML='<div class="hint-empty" style="padding:24px">还没有念头</div>';
+else S.ai.th.slice().reverse().forEach(t=>{let i=S.ai.th.indexOf(t),d=document.createElement('div');d.className='th';
+let h='<div class="th-b">'+esc(t.content)+'</div><div class="th-f"><span>'+fmtFull(t.ts)+'</span><button onclick="replyTh('+i+')">回一句</button></div>';
+if(t.replies&&t.replies.length){h+='<div class="th-rp">';t.replies.forEach(r=>{h+='<div class="rp"><b>'+(r.author==='user'?un:an)+'</b>'+esc(r.content)+'</div>'});h+='</div>'}
+d.innerHTML=h;aT.appendChild(d)});
+let mN=document.getElementById('meNow');
+if(S.me.now){mN.textContent=S.me.now;document.getElementById('meNowT').textContent=ago(S.me.nowTs)}
+else{mN.innerHTML='<span style="color:var(--tx3);font-style:italic">现在什么感觉？</span>';document.getElementById('meNowT').textContent=''}
+let mD=document.getElementById('meDesc');
+if(S.me.desc){mD.textContent=S.me.desc;mD.classList.remove('ph')}else{mD.textContent='你自己写。想让他一直知道的东西，放这里。';mD.classList.add('ph')}
+let mT=document.getElementById('meTh');mT.innerHTML='';
+if(!S.me.th.length)mT.innerHTML='<div class="hint-empty" style="padding:24px">不想组织语言的时候，丢一句就跑</div>';
+else S.me.th.slice().reverse().forEach(t=>{let i=S.me.th.indexOf(t),d=document.createElement('div');d.className='th';
+let h='<div class="th-b">'+esc(t.content)+'</div><div class="th-f"><span>'+fmtFull(t.ts)+'</span><button onclick="dropMeTh('+i+')">删掉</button></div>';
+if(t.replies&&t.replies.length){h+='<div class="th-rp">';t.replies.forEach(r=>{h+='<div class="rp"><b>'+(r.author==='user'?un:an)+'</b>'+esc(r.content)+'</div>'});h+='</div>'}
+d.innerHTML=h;mT.appendChild(d)});
+rQa(an,un);if(S.seg==='fav')rFav()}
+function rQa(an,un){let aQ=document.getElementById('aiQa'),mQ=document.getElementById('meQa');
+aQ.innerHTML='';mQ.innerHTML='';let aiN=0,meN=0;
+S.qa.slice().reverse().forEach(z=>{let i=S.qa.indexOf(z),mine=z.by==='user';
+let d=document.createElement('div');d.className='qa'+(z.star?' star':'');
+let h='<div class="qa-q">'+esc(z.q)+'</div>';
+if(z.a)h+='<div class="qa-a"><div class="qa-aw">'+(z.a.by==='user'?un:an)+' 答</div><div class="qa-ab">'+esc(z.a.content)+'</div></div>';
+h+='<div class="qa-f"><span>'+(z.star?'<span class="starmk">★</span> ':'')+fmtFull(z.ts)+(z.editedTs?' · 改过':'')+'</span><span class="acts">';
+if(mine)h+='<button onclick="editQ('+i+')">改</button><button onclick="delQ('+i+')">删</button>';
+if(!z.a&&!mine)h+='<button class="pri" onclick="ansQ('+i+')">回答</button>';
+if(z.a&&z.a.by==='user'&&!mine)h+='<button onclick="ansQ('+i+')">改答案</button>';
+h+='</span></div>';d.innerHTML=h;
+if(mine){mQ.appendChild(d);meN++}else{aQ.appendChild(d);aiN++}});
+if(!aiN)aQ.innerHTML='<div class="hint-empty" style="padding:24px">他还没问你什么</div>';
+if(!meN)mQ.innerHTML='<div class="hint-empty" style="padding:24px">有什么想问他的？</div>'}
+function rFav(){let an=esc(S.sets.aiName||'Renn'),un=esc(S.sets.userName||'小u');
+let pins=[];Object.keys(S.convs).forEach(function(id){var c=S.convs[id];if(!c||!c.msgs)return;
+c.msgs.forEach(function(m,x){if(m.pin&&!m.err)pins.push({cid:id,idx:x,m:m,title:c.title||'对话'})})});
+let ds=[];S.diary.forEach(function(d,x){if(d.star)ds.push({d:d,i:x})});
+let qs=[];S.qa.forEach(function(z,x){if(z.star)qs.push({z:z,i:x})});
+let ars=[];S.mems.forEach(function(m,x){if(m.arch)ars.push({m:m,i:x})});
+let total=pins.length+ds.length+qs.length;
+document.getElementById('favNote').innerHTML='常驻区现在有 <b>'+total+'</b> 条标记'+(ars.length?'，另有 <b>'+ars.length+'</b> 条记忆在抽屉里':'')+'。<br>标记过的不受轮数和条数限制，会一直跟着 '+an+'。这些是他自己挑的，你随时能撤。';
+let b=document.getElementById('favBody');b.innerHTML='';
+function grp(title,n,items){if(!items.length)return;
+let g=document.createElement('div');g.className='fgrp';
+let h='<div class="fgh"><span class="fgh-t">'+title+'</span><span class="fgh-n">'+n+'</span></div>';
+items.forEach(function(it){h+=it});g.innerHTML=h;b.appendChild(g)}
+grp('钉住的对话',pins.length,pins.slice().reverse().map(function(o){
+let t=String(o.m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' ').trim()||'[图片]';
+return '<div class="fi"><div class="fi-l"></div><div class="fi-b"><div class="fi-m">'+esc(o.title)+' · '+(o.m.role==='user'?un:an)+' · '+fmtFull(o.m.ts)+'</div><div class="fi-t">'+esc(t)+'</div></div><div class="fi-a"><button onclick="jumpMsg(\''+o.cid+'\','+o.idx+')">跳过去</button><button onclick="unpinFav(\''+o.cid+'\','+o.idx+')">取消</button></div></div>'}));
+grp('收藏的日记',ds.length,ds.slice().reverse().map(function(o){
+let t=String(o.d.content||'').replace(/\s+/g,' ').trim()||'[只有图]';
+return '<div class="fi"><div class="fi-l"></div><div class="fi-b"><div class="fi-m">'+(o.d.author==='user'?un:an)+' · '+fmtFull(o.d.ts)+'</div><div class="fi-t">'+esc(t)+'</div></div><div class="fi-a"><button onclick="go(\'diary\')">去看</button><button onclick="unstarD('+o.i+')">取消</button></div></div>'}));
+grp('收藏的问答',qs.length,qs.slice().reverse().map(function(o){
+let t='Q：'+String(o.z.q||'').replace(/\s+/g,' ')+(o.z.a?'\nA：'+String(o.z.a.content||'').replace(/\s+/g,' '):'');
+return '<div class="fi"><div class="fi-l"></div><div class="fi-b"><div class="fi-m">'+(o.z.by==='user'?un:an)+'问 · '+fmtFull(o.z.ts)+'</div><div class="fi-t">'+esc(t)+'</div></div><div class="fi-a"><button onclick="segTo(\''+(o.z.by==='user'?'me':'ai')+'\')">去看</button><button onclick="unstarQ('+o.i+')">取消</button></div></div>'}));
+grp('抽屉里的记忆',ars.length,ars.slice().reverse().map(function(o){
+return '<div class="fi arch"><div class="fi-l" style="background:var(--tx3)"></div><div class="fi-b"><div class="fi-m">不在上下文里，但搜得到</div><div class="fi-t">'+esc(o.m.content)+'</div></div><div class="fi-a"><button onclick="tgArch('+o.i+')">放回去</button></div></div>'}));
+if(!total&&!ars.length)b.innerHTML='<div class="hint-empty">还没有任何标记<br><br>长按聊天里的消息可以钉住，<br>或者等 '+an+' 自己挑</div>'}
+function unpinFav(cid,idx){let c=S.convs[cid];if(c&&c.msgs[idx]){c.msgs[idx].pin=false;save();rFav();if(cid===S.cur)renderMs()}}
+function unstarD(i){if(S.diary[i]){S.diary[i].star=false;save();rFav();rDiary()}}
+function unstarQ(i){if(S.qa[i]){S.qa[i].star=false;save();rFav();rQa(esc(S.sets.aiName||'Renn'),esc(S.sets.userName||'小u'))}}
+function tgArch(i){if(S.mems[i]){S.mems[i].arch=!S.mems[i].arch;save();rMems();rFav()}}
+function jumpMsg(cid,idx){if(S.cur!==cid){S.cur=cid;save();renderCL();renderMs()}
+go('chat');setTimeout(function(){let el=document.querySelector('#msgs [data-i="'+idx+'"]');
+if(el){el.scrollIntoView({block:'center',behavior:'smooth'});el.classList.add('jump');
+setTimeout(function(){el.classList.remove('jump')},1800)}},180)}
+function openUm(mode,idx,title,val){S.umMode=mode;S.umIdx=idx;document.getElementById('umt').textContent=title;document.getElementById('umi').value=val||'';document.getElementById('umm').classList.add('show')}
+function editMeNow(){openUm('now',null,'此刻',S.me.now)}
+function editMeDesc(){openUm('desc',null,'关于我',S.me.desc)}
+function addMeTh(){openUm('th',null,'写一句','')}
+function replyTh(i){openUm('rp',i,'回一句','')}
+function saveUs(){let v=document.getElementById('umi').value.trim();
+if(S.umMode==='now'){S.me.now=v;S.me.nowTs=Date.now()}
+else if(S.umMode==='desc'){S.me.desc=v}
+else if(S.umMode==='th'){if(!v)return;S.me.th.push({content:v,ts:Date.now(),replies:[]})}
+else if(S.umMode==='rp'){if(!v)return;let t=S.ai.th[S.umIdx];if(t){if(!t.replies)t.replies=[];t.replies.push({author:'user',content:v,ts:Date.now()})}}
+save();closeMd('umm');rUs()}
+function dropMeTh(i){if(!confirm('删掉这条？'))return;S.me.th.splice(i,1);save();rUs()}
+function openQm(mode,idx,title,sub,val){S.qMode=mode;S.qIdx=idx;document.getElementById('qmt').textContent=title;document.getElementById('qmSub').textContent=sub||'';document.getElementById('qmi').value=val||'';document.getElementById('qmm').classList.add('show')}
+function askQ(){openQm('ask',null,'提一个问题','他会看到，可以回答。一问一答，不追评。','')}
+function editQ(i){openQm('edit',i,'改问题','',S.qa[i].q)}
+function ansQ(i){openQm('ans',i,'回答',S.qa[i].q,S.qa[i].a?S.qa[i].a.content:'')}
+function delQ(i){if(!confirm('删掉这个问题？'))return;S.qa.splice(i,1);save();rUs()}
+function saveQa(){let v=document.getElementById('qmi').value.trim();if(!v)return;
+if(S.qMode==='ask')S.qa.push({by:'user',q:v,ts:Date.now(),a:null,star:false});
+else if(S.qMode==='edit'){S.qa[S.qIdx].q=v;S.qa[S.qIdx].editedTs=Date.now()}
+else if(S.qMode==='ans')S.qa[S.qIdx].a={by:'user',content:v,ts:Date.now()};
+save();closeMd('qmm');rUs()}
+function maybeGreet(){
+if(!S.sets.greet||S.gen)return;
+if(!S.sets.key||!S.sets.url||!S.sets.model)return;
+if(Date.now()-S.greetAt<180000)return;
+let h=parseFloat(S.sets.greetH);if(isNaN(h)||h<=0)h=3;
+if(!S.lastSeen){S.lastSeen=Date.now();save();return}
+let gap=Date.now()-S.lastSeen;if(gap<h*3600000)return;
+let cv=S.convs[S.cur];if(!cv||!cv.msgs)return;
+if(!cv.msgs.filter(m=>m.role==='user'||m.role==='assistant').length)return;
+if(cv.msgs[cv.msgs.length-1].err)return;
+S.greetAt=Date.now();
+let hrs=gap/3600000,txt=hrs<24?(Math.round(hrs)+' 小时'):(Math.round(hrs/24)+' 天');
+let note='[系统提示｜不是'+(S.sets.userName||'小u')+'说的话] 她刚回来，距上次离开过了大约 '+txt+'。先开口，说你想说的。状态有变化就顺手 update_now。';
+S.lastSeen=Date.now();
+cv.msgs.push({role:'sys',text:'隔了 '+txt,ts:Date.now()});
+if(!cv.api)cv.api=[];cv.api.push({role:'user',content:note});
+save();renderMs();runWrap(cv)}
+async function runWrap(cv){if(S.gen)return;S.gen=true;S.ac=new AbortController();S.timedOut=false;PART=null;wlOn();
+document.getElementById('sb').disabled=true;document.getElementById('stopBtn').classList.add('show');
+try{await runTurn(cv,0)}catch(e){onFail(cv,e)}
+finally{dogOff();S.gen=false;S.ac=null;PART=null;wlOff();
+document.getElementById('sb').disabled=false;
+document.getElementById('stopBtn').classList.remove('show');
+let tp=document.getElementById('tmsg');if(tp)tp.remove();
+save()}}
+function onFail(cv,e){dogOff();
+let tp=document.getElementById('tmsg');if(tp)tp.remove();
+document.querySelectorAll('#msgs .msg.a').forEach(function(el){if(!el.textContent.trim()&&!el.querySelector('img'))el.remove()});
+let aborted=(e&&e.name==='AbortError'),to=S.timedOut;
+let p=(PART&&(PART.rtx||PART.tn.length))?PART:null;
+if(p){let d={role:'assistant',ts:Date.now(),cut:true};
+if(p.thk)d.thinking=p.thk;if(p.rtx)d.text=p.rtx;if(p.tn.length)d.tools=p.tn;
+cv.msgs.push(d);
+cv.api.push({role:'assistant',content:[{type:'text',text:p.rtx||'（没说完）'}]})}
+if(!aborted||to){
+cv.msgs.push({role:'assistant',err:true,
+errMsg:to?('连接卡住了 — 超过 '+(S.sets.timeout||25)+' 秒没有收到任何新内容，自动断开。\n通常是中转或网络丢包，重试一般就好。'):String(e&&e.message||e),
+ts:Date.now()})}
+S.timedOut=false;PART=null;save();renderMs()}
+function newChat(){let id=Date.now().toString();S.convs[id]={title:'新对话',msgs:[],api:[],imgs:[]};S.cur=id;save();renderCL();renderMs();closeSb();go('chat')}
+function switchC(id){S.cur=id;save();renderCL();renderMs();closeSb();go('chat')}
+function delC(id,e){e.stopPropagation();delete S.convs[id];if(S.cur===id){let ids=Object.keys(S.convs);if(ids.length)S.cur=ids[ids.length-1];else{newChat();return}}save();renderCL();renderMs()}
+function editTitle(id,e){e.stopPropagation();S.titleId=id;document.getElementById('tmi').value=S.convs[id].title;document.getElementById('tmm').classList.add('show')}
+function saveTitle(){let t=document.getElementById('tmi').value.trim();if(t&&S.titleId){S.convs[S.titleId].title=t;save();renderCL()}closeMd('tmm')}
+function renderCL(){let l=document.getElementById('clist');l.innerHTML='';Object.keys(S.convs).reverse().forEach(id=>{let c=S.convs[id];let d=document.createElement('div');d.className='sb-item'+(id===S.cur?' act':'');d.onclick=()=>switchC(id);d.innerHTML='<span>'+esc(c.title)+'</span><button class="sb-act" onclick="editTitle(\''+id+'\',event)">✎</button><button class="sb-act" onclick="delC(\''+id+'\',event)" style="font-size:18px">×</button>';l.appendChild(d)})}
+function renderMs(){let c=document.getElementById('msgs');c.innerHTML='';let cv=S.convs[S.cur];
+if(!cv||!cv.msgs.length){c.innerHTML='<div class="empty">给'+esc(S.sets.aiName||'Renn')+'发消息开始对话</div>';return}
+cv.msgs.forEach((m,i)=>addDOM(m,i));scrD()}
+function fmtTs(ts){if(!ts)return'';let d=new Date(ts),n=new Date(),h=String(d.getHours()).padStart(2,'0'),mi=String(d.getMinutes()).padStart(2,'0');return d.toDateString()===n.toDateString()?h+':'+mi:(d.getMonth()+1)+'/'+d.getDate()+' '+h+':'+mi}
+function fmtFull(ts){if(!ts)return'';let d=new Date(ts);return(d.getMonth()+1)+'月'+d.getDate()+'日 '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function bubsHtml(t){let ps=String(t).split(/\n*\/\/\/+\n*/);let out='';ps.forEach(p=>{if(p.trim())out+='<div class="bub">'+md(p.trim())+'</div>'});return out||'<div class="bub"></div>'}
+function msgImgs(cv,m){if(m.ii&&m.ii.length&&cv&&cv.imgs)return m.ii.map(x=>cv.imgs[x]).filter(Boolean);
+if(m.images&&m.images.length)return m.images;if(m.image)return[m.image];return[]}
+function bindLong(el,idx){let t=null,mv=false;
+el.addEventListener('touchstart',function(){mv=false;t=setTimeout(function(){if(!mv){try{if(navigator.vibrate)navigator.vibrate(12)}catch(e){}openAm(idx)}},450)},{passive:true});
+el.addEventListener('touchmove',function(){mv=true;clearTimeout(t)},{passive:true});
+el.addEventListener('touchend',function(){clearTimeout(t)});
+el.addEventListener('touchcancel',function(){clearTimeout(t)});
+el.addEventListener('contextmenu',function(e){e.preventDefault()})}
+function openAm(idx){let cv=S.convs[S.cur],m=cv&&cv.msgs[idx];if(!m||m.role==='sys')return;
+let h='';
+h+='<button class="ami" onclick="amDo(\'quote\','+idx+')">引用</button>';
+h+='<button class="ami" onclick="amDo(\'copy\','+idx+')">复制文字</button>';
+if(m.role==='user')h+='<button class="ami" onclick="amDo(\'edit\','+idx+')">编辑重发</button>';
+h+='<button class="ami'+(m.pin?' on':'')+'" onclick="amDo(\'pin\','+idx+')">'+(m.pin?'取消钉住':'钉住（永久留在上下文）')+'</button>';
+h+='<button class="ami dan" onclick="amDo(\'del\','+idx+')">删除这一轮</button>';
+h+='<button class="ami" onclick="closeAm()">取消</button>';
+document.getElementById('amSheet').innerHTML=h;document.getElementById('am').classList.add('show')}
+function closeAm(){document.getElementById('am').classList.remove('show')}
+function amDo(a,i){closeAm();let cv=S.convs[S.cur],m=cv&&cv.msgs[i];if(!m)return;
+if(a==='quote')quoteMsg(i);
+else if(a==='copy'){let t=String(m.text||'').replace(/\n*\/\/\/+\n*/g,'\n\n');
+if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(function(){toast('已复制')}).catch(function(){toast('复制失败')});
+else toast('这个浏览器不支持复制')}
+else if(a==='edit')editUserMsg(i);
+else if(a==='pin')togglePin(i);
+else if(a==='del')delTurn(i)}
+function addDOM(m,idx){let c=document.getElementById('msgs'),cv=S.convs[S.cur];
+if(m.role==='sys'){let s=document.createElement('div');s.className='sysline';s.dataset.i=idx;s.textContent=m.text;c.appendChild(s);return s}
+let d=document.createElement('div');d.className='msg '+(m.role==='user'?'u':'a')+(m.pin?' pinned':'');d.dataset.i=idx;let h='';
+if(m.err){h+='<div class="errb" onclick="this.classList.toggle(\'open\')">['+esc(S.sets.aiName||'Renn')+' 走神了]<div class="errd">'+esc(m.errMsg||'')+'</div></div>';
+h+='<div class="erracts"><button onclick="regen('+idx+')">重新生成</button><button onclick="delTurn('+idx+')">删掉这轮</button></div>';
+d.innerHTML=h;c.appendChild(d);return d}
+let imgs=msgImgs(cv,m);
+if(imgs.length){h+='<div class="mimgs'+(imgs.length===1?' one':'')+'">';imgs.forEach(u=>{h+='<img src="'+u+'" onclick="lb(this.src)">'});h+='</div>'}
+else if(m.imgGone)h+='<div class="ts" style="opacity:.6">· 图片已被清理</div>';
+if(m.thinking)h+='<div class="thk" onclick="this.classList.toggle(\'open\')"><div class="thk-hd"><span class="ar">▶</span> 思考过程</div><div class="thk-bd">'+esc(m.thinking)+'</div></div>';
+if(m.text)h+='<div class="bubs">'+bubsHtml(m.text)+'</div>';
+if(m.tools&&m.tools.length)m.tools.forEach(t=>{h+='<div class="ts" style="opacity:.7">· '+esc(t)+'</div>'});
+if(m.trunc)h+='<div class="cutbar">· 撞到最大输出上限被截断了 <button onclick="contMsg('+idx+')">接着说</button></div>';
+if(m.cut)h+='<div class="cutbar">· 说到这儿断了 <button onclick="contMsg('+idx+')">接着说</button><button onclick="regen('+idx+')">重新生成</button></div>';
+h+='<div class="ts">'+(m.ts?fmtTs(m.ts):'')+(m.pin?' <span style="color:var(--ac)">已钉</span>':'')+'</div>';
+d.innerHTML=h;c.appendChild(d);bindLong(d,idx);return d}
+function togglePin(i){let cv=S.convs[S.cur];if(!cv||!cv.msgs[i])return;cv.msgs[i].pin=!cv.msgs[i].pin;save();renderMs();toast(cv.msgs[i].pin?'已钉住':'已取消');if(S.seg==='fav')rFav()}
+function quoteMsg(i){let cv=S.convs[S.cur],m=cv.msgs[i];if(!m)return;
+let t=String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/^&gt;.*$/gm,'').replace(/\s+/g,' ').trim();
+if(!t)t='[图片]';
+S.quote={by:m.role==='user'?(S.sets.userName||'小u'):(S.sets.aiName||'Renn'),text:t.slice(0,150)};
+document.getElementById('qbarB').innerHTML='<b>'+esc(S.quote.by)+'</b>'+esc(S.quote.text);
+document.getElementById('qbar').classList.add('show');document.getElementById('mi').focus()}
+function rmQuote(){S.quote=null;document.getElementById('qbar').classList.remove('show')}
+function delTurn(i){let cv=S.convs[S.cur];if(!cv||!cv.msgs[i])return;
+if(!confirm('删掉这一轮？永久删除，不会保留在任何地方。'))return;
+let st=i;while(st>0&&cv.msgs[st].role!=='user'&&cv.msgs[st].role!=='sys')st--;
+let en=st+1;while(en<cv.msgs.length&&cv.msgs[en].role!=='user'&&cv.msgs[en].role!=='sys')en++;
+let k=0;for(let x=0;x<st;x++)if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')k++;
+let cu=[];for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
+let aS=cu[k]!==undefined?cu[k]:cv.api.length,aE=cu[k+1]!==undefined?cu[k+1]:cv.api.length;
+cv.api.splice(aS,aE-aS);cv.msgs.splice(st,en-st);
+save();renderMs();if(S.seg==='fav')rFav()}
+async function regen(i){let cv=S.convs[S.cur];if(!cv||S.gen)return;
+if(cv.msgs[i]&&(cv.msgs[i].err||cv.msgs[i].cut)){
+if(cv.msgs[i].cut){let l=cv.api[cv.api.length-1];if(l&&l.role==='assistant')cv.api.pop()}
+cv.msgs.splice(i,1)}
+renderMs();await runWrap(cv)}
+async function contMsg(i){let cv=S.convs[S.cur];if(!cv||S.gen)return;
+let m=cv.msgs[i];if(!m)return;
+let tail=String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' ').slice(-70);
+cv.msgs.push({role:'sys',text:'（让他接着说）',ts:Date.now()});
+if(!cv.api)cv.api=[];
+cv.api.push({role:'user',content:'[系统提示｜不是她说的话] 你上一条说到「…'+tail+'」的时候断了。接着往下说完，不要重复前面已经说过的内容，也不用道歉或解释。'});
+save();renderMs();await runWrap(cv)}
+function scrD(){let a=document.getElementById('ca');if(a)a.scrollTop=a.scrollHeight;let t=document.getElementById('toBot');if(t)t.classList.remove('show')}
+function nearB(){let a=document.getElementById('ca');return a.scrollHeight-a.scrollTop-a.clientHeight<100}
+function compressImg(f,mx,q,cb){let r=new FileReader();
+r.onload=function(ev){let im=new Image();im.onload=function(){let w=im.width,h=im.height;
+if(w>mx||h>mx){if(w>h){h=h*mx/w;w=mx}else{w=w*mx/h;h=mx}}
+let c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);
+cb(c.toDataURL('image/jpeg',q),'image/jpeg')};im.src=ev.target.result};
+r.readAsDataURL(f)}
+function hImg(e){let fs=Array.prototype.slice.call(e.target.files||[]);e.target.value='';if(!fs.length)return;
+let room=3-S.pimgs.length;if(room<=0){toast('最多 3 张');return}
+fs.slice(0,room).forEach(f=>compressImg(f,960,.76,(du,mt)=>{S.pimgs.push({data:du.split(',')[1],type:mt,preview:du});rIp()}))}
+function rIp(){let ip=document.getElementById('ip');
+if(!S.pimgs.length){ip.classList.remove('show');ip.innerHTML='';return}
+let h='';S.pimgs.forEach((p,i)=>{h+='<div class="ipi"><img src="'+p.preview+'"><button onclick="rmImg('+i+')">×</button></div>'});
+h+='<span class="ipn">'+S.pimgs.length+'/3</span>';ip.innerHTML=h;ip.classList.add('show')}
+function rmImg(i){if(i===undefined)S.pimgs=[];else S.pimgs.splice(i,1);rIp()}
+function toggleSearch(){let b=document.getElementById('sbar');if(b.classList.contains('show')){b.classList.remove('show');clearSearch()}else b.classList.add('show')}
+function doSearch(){let q=document.getElementById('sinp').value.trim().toLowerCase(),a=document.getElementById('ca'),ms=document.querySelectorAll('#msgs .msg');if(!q){clearSearch();return}a.classList.add('searching');let n=0;ms.forEach(m=>{if(m.textContent.toLowerCase().indexOf(q)>=0){m.classList.add('hl');n++}else m.classList.remove('hl')});document.getElementById('scnt').textContent=n+'个结果'}
+function clearSearch(){document.getElementById('sinp').value='';document.getElementById('scnt').textContent='';document.getElementById('ca').classList.remove('searching');document.querySelectorAll('#msgs .msg').forEach(m=>m.classList.remove('hl'))}
+function toggleDSearch(){let b=document.getElementById('dsbar');if(b.classList.contains('show')){b.classList.remove('show');document.getElementById('dsinp').value='';document.getElementById('dscnt').textContent=''}else b.classList.add('show');rDiary()}
+function editUserMsg(i){S.editIdx=i;document.getElementById('emmi').value=S.convs[S.cur].msgs[i].text||'';document.getElementById('emm').classList.add('show')}
+function resendMsg(){let t=document.getElementById('emmi').value.trim();if(!t)return;let cv=S.convs[S.cur];
+let k=0;for(let x=0;x<S.editIdx;x++)if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')k++;
+let cu=[];for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
+let aS=cu[k]!==undefined?cu[k]:cv.api.length;
+cv.msgs=cv.msgs.slice(0,S.editIdx);cv.api=cv.api.slice(0,aS);
+save();renderMs();closeMd('emm');document.getElementById('mi').value=t;send()}
+function isCleanUser(m){return m&&m.role==='user'&&!(Array.isArray(m.content)&&m.content[0]&&m.content[0].type==='tool_result')}
+function normalizeApi(ms){let out=[];
+for(let i=0;i<ms.length;i++){let m=ms[i];
+if(out.length&&out[out.length-1].role===m.role){
+let p=out[out.length-1];
+let pc=Array.isArray(p.content)?p.content.slice():[{type:'text',text:String(p.content)}];
+let cc=Array.isArray(m.content)?m.content.slice():[{type:'text',text:String(m.content)}];
+let merged=pc.concat(cc);
+if(m.role==='assistant')merged=merged.filter(b=>b.type!=='thinking'&&b.type!=='redacted_thinking');
+if(!merged.length)merged=[{type:'text',text:'...'}];
+out[out.length-1]={role:m.role,content:merged}}
+else out.push(m)}
+return out}
+function buildApiMs(cv){
+var api=cv.api||[],n=api.length,j,b;
+var turns=parseInt(S.sets.ctxTurns);if(isNaN(turns)||turns<=0)turns=30;
+var thkT=parseInt(S.sets.thkTurns);if(isNaN(thkT)||thkT<0)thkT=5;
+var imgT=parseInt(S.sets.imgTurns);if(isNaN(imgT)||imgT<0)imgT=3;
+var cu=[];for(var i=0;i<n;i++)if(isCleanUser(api[i]))cu.push(i);
+var start=cu.length>turns?cu[cu.length-turns]:0;
+var thkStart=cu.length>thkT?cu[cu.length-thkT]:0;
+var imgStart=cu.length>imgT?cu[cu.length-imgT]:0;
+var out=[],imgNo=-1;
+for(var i=0;i<start;i++){var mm=api[i];if(Array.isArray(mm.content))for(j=0;j<mm.content.length;j++)if(mm.content[j].type==='image')imgNo++}
+for(var i=start;i<n;i++){var m=api[i];
+if(m.role==='user'&&Array.isArray(m.content)&&m.content[0]&&m.content[0].type==='tool_result'){
+if(i<imgStart){var tr=m.content.map(function(x){
+if(x.type==='tool_result'&&Array.isArray(x.content)){
+var inn=x.content.map(function(y){return y.type==='image'?{type:'text',text:'[取回的图已折叠，需要再 recall 一次]'}:y});
+return{type:'tool_result',tool_use_id:x.tool_use_id,content:inn}}
+return x});
+out.push({role:'user',content:tr});continue}
+out.push(m);continue}
+if(m.role==='user'&&Array.isArray(m.content)){
+var hasImg=false;for(j=0;j<m.content.length;j++)if(m.content[j].type==='image')hasImg=true;
+if(hasImg){var nc=[];
+for(j=0;j<m.content.length;j++){b=m.content[j];
+if(b.type==='image'){imgNo++;nc.push(i<imgStart?{type:'text',text:'[图片#'+imgNo+' 已折叠，要看用 recall_image]'}:b)}
+else nc.push(b)}
+out.push({role:'user',content:nc});continue}}
+if(m.role==='assistant'&&Array.isArray(m.content)){
+var hasTool=false;for(j=0;j<m.content.length;j++)if(m.content[j].type==='tool_use')hasTool=true;
+if((!S.sets.think)||(i<thkStart&&!hasTool)){
+var f=m.content.filter(function(x){return x.type!=='thinking'&&x.type!=='redacted_thinking'});
+out.push({role:'assistant',content:f.length?f:[{type:'text',text:'...'}]});continue}}
+out.push(m)}
+return normalizeApi(out)}
+function buildPins(){var an=S.sets.aiName||'Renn',un=S.sets.userName||'小u',ps=[];
+Object.keys(S.convs).forEach(function(id){var c=S.convs[id];if(!c||!c.msgs)return;
+c.msgs.forEach(function(m){if(!m.pin||m.err||m.role==='sys')return;
+var t='<p from="'+String(c.title||'对话').replace(/"/g,'')+'" by="'+(m.role==='user'?un:an)+'" time="'+fmtFull(m.ts)+'">\n';
+if(m.thinking)t+='<thinking>\n'+m.thinking+'\n</thinking>\n';
+if(m.text)t+=m.text+'\n';t+='</p>';ps.push(t)})});
+if(!ps.length)return'';
+return'[钉住的片段]\n这些被标记为重要，不受对话轮数限制，会一直跟着你们。思考链也一起留着。\n<pinned>\n'+ps.join('\n')+'\n</pinned>'}
+function buildConvIndex(){if(!S.sets.useCidx)return'';
+var ids=Object.keys(S.convs);if(ids.length<2)return'';
+var t='<conversations>\n';
+ids.slice().reverse().slice(0,25).forEach(function(id){var c=S.convs[id];if(!c||!c.msgs)return;
+var cnt=0,last=0;
+for(var i=0;i<c.msgs.length;i++){if(c.msgs[i].role!=='sys'&&!c.msgs[i].err)cnt++;if(c.msgs[i].ts>last)last=c.msgs[i].ts}
+t+='<c title="'+String(c.title||'').replace(/"/g,'')+'" last="'+(last?fmtFull(last):'')+'" msgs="'+cnt+'"'+(id===S.cur?' current="true"':'')+'/>\n'});
+t+='</conversations>';
+return'[对话目录]\n你们所有的对话，标题就是话题。搜关键词用 search_history，想整段回顾某个对话用 read_conversation。别猜。\n'+t}
+function buildQa(an,un){if(!S.qa.length)return'';
+var lim=parseInt(S.sets.qaCtx);if(isNaN(lim)||lim<0)lim=8;
+var keep=[],recent=[];
+S.qa.forEach(function(z,i){if(z.star||!z.a)keep.push(i)});
+for(var i=S.qa.length-1;i>=0&&recent.length<lim;i--){if(keep.indexOf(i)<0)recent.push(i)}
+var all=keep.concat(recent).sort(function(a,b){return a-b});
+var t='<qa>\n';
+all.forEach(function(i){var z=S.qa[i];
+t+='<item id="'+i+'" by="'+(z.by==='user'?un:an)+'" time="'+fmtFull(z.ts)+'"'+(z.star?' starred="true"':'')+'>\n<q>'+z.q+'</q>\n';
+if(z.a)t+='<a by="'+(z.a.by==='user'?un:an)+'">'+z.a.content+'</a>\n';else t+='<a>（还没答）</a>\n';
+t+='</item>\n'});
+t+='</qa>';
+var tip=S.sets.tools?'一问一答，不追评。ask_question 提问，answer_question 答她的，edit_question / delete_question 改删你自己提的，star_qa 收藏。\n收藏的和没答的一直在这儿，其余只给最近几组，更早的用 search_history 搜。\n':'';
+return'[问答]\n'+tip+t}
+function buildSys(){let p=[],an=S.sets.aiName||'Renn',un=S.sets.userName||'用户';
+if(S.sets.incTime){let n=new Date(),w=['日','一','二','三','四','五','六'];p.push('[时间信息]\n当前时间: '+n.getFullYear()+'年'+(n.getMonth()+1)+'月'+n.getDate()+'日 星期'+w[n.getDay()]+' '+String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'))}
+if(S.sets.tools)p.push('[表达]\n回复里插 /// 可以把内容拆成多个气泡，像一句一句发出去那样。回几条你自己决定，不想拆就别插。\n用行首 > 可以引用，前端会渲染成引用块。');
+if(S.sets.tools){let pc=0;Object.keys(S.convs).forEach(id=>{let c=S.convs[id];if(c&&c.msgs)c.msgs.forEach(m=>{if(m.pin)pc++})});
+let sc=S.diary.filter(d=>d.star).length+S.qa.filter(z=>z.star).length;
+p.push('[常驻区的规矩]\n钉住和收藏过的东西不受任何限制，会一直占着上下文。所以每次标记前先问一句：这条必须**一直在眼前**，还是"需要时搜得到就行"？后者一律不标记。\n\n现在钉了 '+pc+' 条消息、收藏了 '+sc+' 条日记问答。总数控制在十几条以内，超了就回看一遍把不再重要的撤掉：pin_message(on:false) / star_diary(on:false) / star_qa(on:false)。\n\n记忆默认全部常驻，觉得某条不必总在眼前就 archive_memory 收进抽屉，search_history 依然搜得到。\n\n这是取舍，不是收集。收得越多，等于什么都没收。')}
+if(S.sets.incMem){let ms=[],ar=0;
+S.mems.forEach((m,i)=>{if(m.arch){ar++;return}ms.push({m:m,i:i})});
+if(S.sets.maxMem>0)ms=ms.slice(0,S.sets.maxMem);
+let t='<memories>\n';ms.forEach(o=>{t+='<record><id>'+o.i+'</id><content>'+o.m.content+'</content>'+(o.m.locked?'<locked>true</locked>':'')+'</record>\n'});t+='</memories>';
+let tip=S.sets.tools?'create / edit / delete 主动管理。值得长期记住的主动记录，相关的合并更新而非重复创建。locked 的不可改。\n':'';
+p.push('[记忆库]'+(ar?'（另有 '+ar+' 条在抽屉里，搜得到）':'')+'\n'+tip+t)}
+let ci=buildConvIndex();if(ci)p.push(ci);
+let pn=buildPins();if(pn)p.push(pn);
+if(S.sets.useUs){let u='';
+u+='<'+an+'>\n<now time="'+(S.ai.nowTs?fmtFull(S.ai.nowTs):'')+'">'+(S.ai.now||'（空）')+'</now>\n<self>'+(S.ai.desc||'（还没写）')+'</self>\n';
+if(S.ai.th.length){u+='<thoughts>\n';S.ai.th.slice(-12).forEach(t=>{u+='<t time="'+fmtFull(t.ts)+'">'+t.content+'</t>\n';if(t.replies&&t.replies.length)t.replies.forEach(r=>{u+='  <reply by="'+(r.author==='user'?un:an)+'">'+r.content+'</reply>\n'})});u+='</thoughts>\n'}
+u+='</'+an+'>\n\n<'+un+'>\n<now time="'+(S.me.nowTs?fmtFull(S.me.nowTs):'')+'">'+(S.me.now||'（空）')+'</now>\n<self>'+(S.me.desc||'（她还没写）')+'</self>\n';
+if(S.me.th.length){u+='<thoughts>\n';S.me.th.slice(-12).forEach(t=>{let i=S.me.th.indexOf(t);u+='<t i="'+i+'" time="'+fmtFull(t.ts)+'">'+t.content+'</t>\n';if(t.replies&&t.replies.length)t.replies.forEach(r=>{u+='  <reply by="'+(r.author==='user'?un:an)+'">'+r.content+'</reply>\n'})});u+='</thoughts>\n'}
+u+='</'+un+'>';
+let tip=S.sets.tools?'update_now 更新你的「此刻」，她每次打开都会看到。update_self 改写你的自我描述，这块是你的。write_thought 往念头流丢一句，不是说给她听的。reply_thought 回她念头里的某条（用 i）。\n\n⚠️ '+un+' 的 self / now / thoughts 你只能读，没有任何工具能改。那是她的地方。\n':'';
+p.push('[我们]\n'+tip+u)}
+let qs=buildQa(an,un);if(qs)p.push(qs);
+let n2=parseInt(S.sets.diaryCtx);if(isNaN(n2))n2=10;
+if(S.diary.length){let idx=[],st=Math.max(0,S.diary.length-(n2>0?n2:0));
+S.diary.forEach((d,i)=>{if(d.star||i>=st)idx.push(i)});
+if(idx.length){let t='<diary_index>\n';
+idx.forEach(i=>{let d=S.diary[i],full=String(d.content||''),head=full.replace(/\s+/g,' ').slice(0,42);
+let ig=d.images&&d.images.length?d.images.length:(d.image?1:0);
+t+='<e id="'+i+'" by="'+(d.author==='user'?un:an)+'" time="'+fmtFull(d.ts)+'"'+(d.star?' starred="true"':'')+(d.comments&&d.comments.length?' comments="'+d.comments.length+'"':'')+(ig?' images="'+ig+'"':'')+(d.editedTs?' edited="1"':'')+'>'+head+(full.length>42?'…':'')+'</e>\n'});
+t+='</diary_index>';
+let tip=S.sets.tools?'这是目录，只有开头。read_diary(id) 读全文和评论。create_diary 发布，add_comment 评论，star_diary 收藏。\nedit_diary / delete_diary 对任何一篇都有效，包括她写的——改她的会留下痕迹让她看见。这个权限是她给的。\n':'';
+p.push('[日记本]\n'+tip+t)}}
+if(S.sets.sys)p.push(S.sets.sys);return p.join('\n\n')}
+async function send(){if(S.gen)return;let inp=document.getElementById('mi'),text=inp.value.trim();if(!text&&!S.pimgs.length)return;
+if(!S.sets.key||!S.sets.url||!S.sets.model){alert('请先在 设置 → API 服务 填写 Key、地址和模型');go('set');return}
+let cv=S.convs[S.cur];
+if(cv.msgs.length&&cv.msgs[cv.msgs.length-1].err)cv.msgs.pop();
+let full=text;
+if(S.quote)full='> '+S.quote.by+'：'+S.quote.text+'\n\n'+text;
+let um={role:'user',text:full,ts:Date.now()},ac=[];
+if(S.pimgs.length){if(!cv.imgs)cv.imgs=[];um.ii=[];
+S.pimgs.forEach(p=>{cv.imgs.push(p.preview);um.ii.push(cv.imgs.length-1);
+ac.push({type:'image',source:{type:'base64',media_type:p.type,data:p.data}})})}
+if(full)ac.push({type:'text',text:full});
+let am={role:'user',content:(ac.length===1&&ac[0].type==='text')?full:ac};
+if(cv.msgs.filter(m=>m.role==='user').length===0&&text){cv.title=text.substring(0,30);renderCL()}
+let em=document.querySelector('.empty');if(em)em.remove();
+cv.msgs.push(um);if(!cv.api)cv.api=[];cv.api.push(am);addDOM(um,cv.msgs.length-1);scrD();
+inp.value='';aH(inp);rmImg();rmQuote();S.lastSeen=Date.now();
+await runWrap(cv)}
+async function runTurn(cv,depth){if(depth>8)return;
+let an=esc(S.sets.aiName||'Renn'),td=document.createElement('div');td.className='msg a';td.id='tmsg';
+td.innerHTML='<div class="bub"><div class="typ-wrap"><span class="typ-label">'+an+'正在输入</span><div class="typ"><span></span><span></span><span></span></div></div></div>';
+document.getElementById('msgs').appendChild(td);scrD();
+let sys=buildSys(),apiMs=buildApiMs(cv);
+let body={model:S.sets.model,max_tokens:parseInt(S.sets.maxTok)||16000,system:sys,messages:apiMs,stream:true};
+if(S.sets.tools)body.tools=TOOLS;
+if(S.sets.think)body.thinking={type:'enabled',budget_tokens:parseInt(S.sets.budget)||10000};
+else{let t=parseFloat(S.sets.temp);if(!isNaN(t)&&t>=0&&t<=1)body.temperature=t}
+dogOn();
+let res=await fetch(S.sets.url+'/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':S.sets.key,'anthropic-version':'2023-06-01'},body:JSON.stringify(body),signal:S.ac.signal});
+if(!res.ok){let e=await res.text();dogOff();throw new Error('API '+res.status+': '+e)}
+let tp=document.getElementById('tmsg');if(tp)tp.remove();
+let reader=res.body.getReader(),dec=new TextDecoder(),buf='',thk='',rtx='',sig='',cbt=null,thkEl=null,bwrap=null,blocks=[],curTool=null,tj='',sr='',tn=[];
+PART={thk:'',rtx:'',tn:[]};
+let ad=document.createElement('div');ad.className='msg a';document.getElementById('msgs').appendChild(ad);
+try{
+while(true){let{done,value}=await reader.read();if(done)break;
+LASTDATA=Date.now();
+buf+=dec.decode(value,{stream:true});let lines=buf.split('\n');buf=lines.pop()||'';
+for(let line of lines){if(line.indexOf('data: ')!==0)continue;let d=line.slice(6).trim();if(d==='[DONE]')continue;
+try{let ev=JSON.parse(d);
+if(ev.type==='content_block_start'){cbt=ev.content_block&&ev.content_block.type;
+if(cbt==='thinking'){thk='';sig='';thkEl=document.createElement('div');thkEl.className='thk open';thkEl.innerHTML='<div class="thk-hd" onclick="this.parentElement.classList.toggle(\'open\')"><span class="ar">▶</span> 思考中...</div><div class="thk-bd"></div>';ad.appendChild(thkEl)}
+else if(cbt==='text'){rtx='';bwrap=document.createElement('div');bwrap.className='bubs';ad.appendChild(bwrap)}
+else if(cbt==='tool_use'){curTool={id:ev.content_block.id,name:ev.content_block.name};tj=''}}
+if(ev.type==='content_block_delta'){let nb=nearB(),dl=ev.delta||{};
+if(dl.type==='thinking_delta'){thk+=dl.thinking;PART.thk=thk;if(thkEl)thkEl.querySelector('.thk-bd').textContent=thk}
+else if(dl.type==='signature_delta'){sig=dl.signature}
+else if(dl.type==='text_delta'){rtx+=dl.text;PART.rtx=rtx;if(bwrap)bwrap.innerHTML=bubsHtml(rtx)}
+else if(dl.type==='input_json_delta'){tj+=dl.partial_json}
+if(nb)scrD()}
+if(ev.type==='content_block_stop'){
+if(cbt==='thinking'){if(thkEl){thkEl.querySelector('.thk-hd').innerHTML='<span class="ar">▶</span> 思考过程';thkEl.classList.remove('open')}let bb={type:'thinking',thinking:thk};if(sig)bb.signature=sig;blocks.push(bb)}
+else if(cbt==='text')blocks.push({type:'text',text:rtx});
+else if(cbt==='tool_use'&&curTool){let ip={};try{ip=tj?JSON.parse(tj):{}}catch(e){}curTool.input=ip;blocks.push({type:'tool_use',id:curTool.id,name:curTool.name,input:ip});
+let nm={create_memory:'记了一条',edit_memory:'改了条记忆',delete_memory:'删了条记忆',archive_memory:'收进抽屉',unarchive_memory:'从抽屉取回',search_history:'翻了翻以前',read_conversation:'重读了一段对话',recall_image:'翻出一张旧图',pin_message:'钉了一条',create_diary:'写了篇日记',read_diary:'读了篇日记',edit_diary:'动了一篇日记',delete_diary:'删了篇日记',add_comment:'在日记下留言',star_diary:'收藏了篇日记',ask_question:'想问你点事',answer_question:'回答了你的问题',edit_question:'改了自己的问题',delete_question:'撤回一个问题',star_qa:'收藏了一组问答',update_now:'更新了此刻',update_self:'改写了自己',write_thought:'写下一个念头',reply_thought:'回了你的念头'}[curTool.name]||curTool.name;
+tn.push(nm);PART.tn=tn;let te=document.createElement('div');te.className='ts';te.style.opacity='.7';te.textContent='· '+nm;ad.appendChild(te);scrD();curTool=null}
+cbt=null}
+if(ev.type==='message_delta'&&ev.delta&&ev.delta.stop_reason)sr=ev.delta.stop_reason;
+}catch(e){}}}
+}finally{dogOff();try{reader.releaseLock()}catch(e){}try{await res.body.cancel()}catch(e){}}
+if(!rtx&&!tn.length){
+if(ad&&ad.parentNode)ad.remove();
+let why=sr==='max_tokens'?'一个字没输出就撞到最大输出上限了（思考预算可能吃满了，把「最大输出」调大或「思考预算」调小）':(sr?('stop_reason: '+sr):'返回的内容是空的');
+cv.msgs.push({role:'assistant',err:true,errMsg:why+(thk?'\n\n有思考链但没有正文。':''),ts:Date.now()});
+PART=null;save();renderMs();return}
+let ts=Date.now(),disp={role:'assistant',ts};
+if(thk)disp.thinking=thk;if(rtx)disp.text=rtx;if(tn.length)disp.tools=tn;
+if(sr==='max_tokens')disp.trunc=true;
+cv.msgs.push(disp);
+cv.api.push({role:'assistant',content:blocks.length?blocks:[{type:'text',text:rtx||'...'}]});
+PART=null;
+let tu=blocks.filter(b=>b.type==='tool_use');
+if(tu.length){
+let rs=tu.map(t=>{let r=execTool(t.name,t.input);return{type:'tool_result',tool_use_id:t.id,content:(typeof r==='string')?r:r.blocks}});
+cv.api.push({role:'user',content:rs});save();rUs();rDiary();refreshUse();
+if(sr==='max_tokens'){renderMs();return}
+await runTurn(cv,depth+1);return}
+let idx=cv.msgs.length-1;ad.dataset.i=idx;
+if(disp.trunc){let w=document.createElement('div');w.className='cutbar';w.innerHTML='· 撞到最大输出上限被截断了 <button onclick="contMsg('+idx+')">接着说</button>';ad.appendChild(w)}
+let te2=document.createElement('div');te2.className='ts';te2.textContent=fmtTs(ts);ad.appendChild(te2);
+bindLong(ad,idx);save();rUs();refreshUse()}
+function stopG(){if(S.ac){try{S.ac.abort()}catch(e){}S.ac=null}}
+function openDiaryModal(){S.dEditIdx=null;S.dpimgs=[];document.getElementById('dmt').textContent='写日记';document.getElementById('dmSave').textContent='发布';document.getElementById('dmi').value='';rDip();document.getElementById('dmm').classList.add('show')}
+function editDiary(i){let d=S.diary[i];if(!d)return;S.dEditIdx=i;S.dpimgs=(d.images||(d.image?[d.image]:[])).slice();
+document.getElementById('dmt').textContent='编辑日记';document.getElementById('dmSave').textContent='保存';document.getElementById('dmi').value=d.content||'';rDip();document.getElementById('dmm').classList.add('show')}
+function hDiaryImg(e){let fs=Array.prototype.slice.call(e.target.files||[]);e.target.value='';if(!fs.length)return;
+let room=3-S.dpimgs.length;if(room<=0){toast('最多 3 张');return}
+fs.slice(0,room).forEach(f=>compressImg(f,860,.72,du=>{S.dpimgs.push(du);rDip()}))}
+function rDip(){let dp=document.getElementById('dip');
+if(!S.dpimgs.length){dp.classList.remove('show');dp.innerHTML='';return}
+let h='';S.dpimgs.forEach((u,i)=>{h+='<div class="ipi"><img src="'+u+'"><button onclick="rmDiaryImg('+i+')">×</button></div>'});
+dp.innerHTML=h;dp.classList.add('show')}
+function rmDiaryImg(i){S.dpimgs.splice(i,1);rDip()}
+function saveDiary(){let c=document.getElementById('dmi').value.trim();
+if(S.dEditIdx!==null){let d=S.diary[S.dEditIdx];if(d){d.content=c;d.editedTs=Date.now();d.editedBy='user';d.images=S.dpimgs.slice();delete d.image}S.dEditIdx=null}
+else{if(!c&&!S.dpimgs.length)return;S.diary.push({author:'user',content:c,ts:Date.now(),comments:[],images:S.dpimgs.slice()})}
+S.dpimgs=[];save();closeMd('dmm');rDiary();refreshUse()}
+function delDiary(i){if(!confirm('删除这篇日记？'))return;S.diary.splice(i,1);save();rDiary();if(S.seg==='fav')rFav()}
+function delCmt(di,ci){if(!confirm('删除这条评论？'))return;S.diary[di].comments.splice(ci,1);save();rDiary()}
+function addCmt(i){let inp=document.getElementById('ci'+i),t=inp.value.trim();if(!t)return;if(!S.diary[i].comments)S.diary[i].comments=[];S.diary[i].comments.push({author:'user',content:t,ts:Date.now()});save();rDiary()}
+function rDiary(){let l=document.getElementById('dl');if(!l)return;l.innerHTML='';
+let q=(document.getElementById('dsinp')&&document.getElementById('dsbar').classList.contains('show'))?document.getElementById('dsinp').value.trim().toLowerCase():'';
+let an=esc(S.sets.aiName||'Renn'),un=esc(S.sets.userName||'我');
+let list=S.diary.map((d,i)=>({d:d,i:i})).filter(o=>{if(!q)return true;
+let t=String(o.d.content||'').toLowerCase();
+if(o.d.comments)o.d.comments.forEach(c=>{t+=' '+String(c.content).toLowerCase()});
+return t.indexOf(q)>=0});
+if(document.getElementById('dscnt'))document.getElementById('dscnt').textContent=q?list.length+'篇':'';
+if(!list.length){l.innerHTML='<div class="hint-empty">'+(q?'没有匹配的日记':'还没有日记<br>点右上角 ＋ 写第一篇')+'</div>';return}
+list.reverse().forEach(o=>{let d=o.d,i=o.i,isMe=d.author==='user',c=document.createElement('div');c.className='dc'+(d.star?' star':'');
+let h='<div class="dc-hd"><div class="dc-who"><span class="dc-dot'+(isMe?' me':'')+'"></span><span class="dc-name">'+(isMe?un:an)+'</span><span class="dc-time">'+(d.star?'★ ':'')+fmtFull(d.ts)+'</span></div><div class="dc-tools">';
+if(isMe)h+='<button onclick="editDiary('+i+')">编辑</button>';
+h+='<button onclick="delDiary('+i+')">删除</button></div></div>';
+let imgs=d.images&&d.images.length?d.images:(d.image?[d.image]:[]);
+if(imgs.length){h+='<div class="dc-imgs'+(imgs.length>1?' multi':'')+'">';imgs.forEach(u=>{h+='<img src="'+u+'" onclick="lb(this.src)">'});h+='</div>'}
+if(d.content)h+='<div class="dc-body">'+esc(d.content)+'</div>';
+if(d.editedTs)h+='<div class="dc-edited">'+fmtFull(d.editedTs)+' 被'+(d.editedBy==='ai'?an:'你')+'改过</div>';
+h+='<div class="dc-cmts">';
+if(d.comments&&d.comments.length)d.comments.forEach((cm,ci)=>{let me=cm.author==='user';
+h+='<div class="cmt"><div class="cmt-hd"><span class="cmt-name'+(me?' me':'')+'">'+(me?un:an)+'</span><span class="cmt-time">'+fmtFull(cm.ts)+'</span><button class="cmt-x" onclick="delCmt('+i+','+ci+')">×</button></div><div class="cmt-body">'+esc(cm.content)+'</div></div>'});
+h+='<div class="cmt-add"><input id="ci'+i+'" placeholder="说点什么..."><button onclick="addCmt('+i+')">发送</button></div></div>';
+c.innerHTML=h;l.appendChild(c)})}
+function rMems(){let l=document.getElementById('ml');if(!l)return;let q=document.getElementById('ms').value.trim().toLowerCase();l.innerHTML='';
+let fl=S.mems.filter(m=>!q||m.content.toLowerCase().indexOf(q)>=0);
+if(!fl.length){l.innerHTML='<div class="hint-empty">'+(q?'没有匹配的记忆':'还没有记忆碎片')+'</div>';return}
+fl.forEach(m=>{let ri=S.mems.indexOf(m),d=document.createElement('div');d.className='mc'+(m.locked?' locked':'')+(m.arch?' arch':'');
+let dt=m.createdAt?new Date(m.createdAt).toLocaleDateString('zh-CN'):'';
+d.innerHTML='<div class="mc-body">'+esc(m.content)+'</div><div class="mc-ft"><span>'+dt+(m.arch?' <span class="archmk">抽屉里</span>':'')+'</span><div class="mc-acts"><button class="lk" onclick="tgLock('+ri+')">'+(m.locked?'锁定':'未锁')+'</button><button onclick="tgArch('+ri+')">'+(m.arch?'放回去':'收起来')+'</button><button onclick="editMem('+ri+')" '+(m.locked?'disabled':'')+'>编辑</button><button onclick="delMem('+ri+')" '+(m.locked?'disabled':'')+'>删除</button></div></div>';
+l.appendChild(d)})}
+function addMem(){S.emid=null;document.getElementById('mmt').textContent='添加记忆';document.getElementById('mmi').value='';document.getElementById('mm').classList.add('show')}
+function editMem(i){if(S.mems[i].locked)return;S.emid=i;document.getElementById('mmt').textContent='编辑记忆';document.getElementById('mmi').value=S.mems[i].content;document.getElementById('mm').classList.add('show')}
+function saveMem(){let c=document.getElementById('mmi').value.trim();if(!c)return;if(S.emid!==null)S.mems[S.emid].content=c;else S.mems.push({content:c,locked:false,arch:false,createdAt:Date.now()});save();closeMd('mm');rMems()}
+function delMem(i){if(S.mems[i].locked||!confirm('删除这条记忆？'))return;S.mems.splice(i,1);save();rMems();if(S.seg==='fav')rFav()}
+function tgLock(i){S.mems[i].locked=!S.mems[i].locked;save();rMems()}
+function closeMd(id){document.getElementById(id).classList.remove('show')}
+function loadSU(){let g=i=>document.getElementById(i);
+g('sk').value=S.sets.key;g('su').value=S.sets.url;g('smo').value=S.sets.model;g('sto').value=S.sets.timeout!==undefined?S.sets.timeout:25;
+g('san').value=S.sets.aiName||'Renn';g('sun').value=S.sets.userName||'小u';g('ss').value=S.sets.sys;
+g('sbd').value=S.sets.budget;g('smx').value=S.sets.maxTok;g('stemp').value=S.sets.temp!==undefined?S.sets.temp:1;
+g('smm').value=S.sets.maxMem;g('sdc').value=S.sets.diaryCtx!==undefined?S.sets.diaryCtx:10;g('sqc').value=S.sets.qaCtx!==undefined?S.sets.qaCtx:8;
+g('sgh').value=S.sets.greetH!==undefined?S.sets.greetH:3;
+g('sct').value=S.sets.ctxTurns!==undefined?S.sets.ctxTurns:30;g('stt').value=S.sets.thkTurns!==undefined?S.sets.thkTurns:5;g('sit2').value=S.sets.imgTurns!==undefined?S.sets.imgTurns:3;
+S.sets.think?g('stk').classList.add('on'):g('stk').classList.remove('on');
+S.sets.incMem?g('sim').classList.add('on'):g('sim').classList.remove('on');
+S.sets.incTime?g('sit').classList.add('on'):g('sit').classList.remove('on');
+S.sets.tools?g('stl').classList.add('on'):g('stl').classList.remove('on');
+S.sets.useUs?g('sus').classList.add('on'):g('sus').classList.remove('on');
+S.sets.useCidx?g('sci').classList.add('on'):g('sci').classList.remove('on');
+S.sets.greet?g('sgr').classList.add('on'):g('sgr').classList.remove('on');
+S.sets.wakeLock?g('swl').classList.add('on'):g('swl').classList.remove('on')}
+function saveS(){let g=i=>document.getElementById(i);
+S.sets.key=g('sk').value.trim();S.sets.url=g('su').value.trim().replace(/\/$/,'');S.sets.model=g('smo').value.trim();
+S.sets.timeout=parseInt(g('sto').value);if(isNaN(S.sets.timeout)||S.sets.timeout<5)S.sets.timeout=25;
+S.sets.aiName=g('san').value.trim()||'Renn';S.sets.userName=g('sun').value.trim()||'小u';S.sets.sys=g('ss').value;
+S.sets.think=g('stk').classList.contains('on');S.sets.budget=parseInt(g('sbd').value)||10000;S.sets.maxTok=parseInt(g('smx').value)||16000;
+S.sets.temp=parseFloat(g('stemp').value);if(isNaN(S.sets.temp))S.sets.temp=1;
+S.sets.incMem=g('sim').classList.contains('on');S.sets.incTime=g('sit').classList.contains('on');S.sets.tools=g('stl').classList.contains('on');
+S.sets.useUs=g('sus').classList.contains('on');S.sets.useCidx=g('sci').classList.contains('on');S.sets.greet=g('sgr').classList.contains('on');S.sets.wakeLock=g('swl').classList.contains('on');
+S.sets.greetH=parseFloat(g('sgh').value);if(isNaN(S.sets.greetH)||S.sets.greetH<=0)S.sets.greetH=3;
+S.sets.maxMem=parseInt(g('smm').value)||0;
+S.sets.diaryCtx=parseInt(g('sdc').value);if(isNaN(S.sets.diaryCtx))S.sets.diaryCtx=10;
+S.sets.qaCtx=parseInt(g('sqc').value);if(isNaN(S.sets.qaCtx)||S.sets.qaCtx<0)S.sets.qaCtx=8;
+S.sets.ctxTurns=parseInt(g('sct').value);if(isNaN(S.sets.ctxTurns)||S.sets.ctxTurns<=0)S.sets.ctxTurns=30;
+S.sets.thkTurns=parseInt(g('stt').value);if(isNaN(S.sets.thkTurns)||S.sets.thkTurns<0)S.sets.thkTurns=5;
+S.sets.imgTurns=parseInt(g('sit2').value);if(isNaN(S.sets.imgTurns)||S.sets.imgTurns<0)S.sets.imgTurns=3;
+save();updPH();rUs();closeSub()}
+function exportData(k){let st={...S.sets};if(!k)st.key='';let data={v:10,sets:st,convs:S.convs,mems:S.mems,diary:S.diary,qa:S.qa,me:S.me,ai:S.ai,cur:S.cur};
+let b=new Blob([JSON.stringify(data)],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');
+a.href=u;a.download='feather-'+new Date().toISOString().slice(0,10)+(k?'':'-nokey')+'.json';a.click();URL.revokeObjectURL(u)}
+function importData(){let inp=document.createElement('input');inp.type='file';inp.accept='.json';
+inp.onchange=function(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();
+r.onload=function(ev){try{let d=JSON.parse(ev.target.result);
+if(d.sets)S.sets={...S.sets,...d.sets};if(d.convs)S.convs=d.convs;if(d.mems)S.mems=d.mems;if(d.diary)S.diary=d.diary;if(d.qa)S.qa=d.qa;
+if(d.me)S.me={...S.me,...d.me};if(d.ai)S.ai={...S.ai,...d.ai};if(d.cur)S.cur=d.cur;
+save();alert('导入成功');location.reload()}catch(e){alert('导入失败：文件格式不正确')}};r.readAsText(f)};inp.click()}
+function resetData(){if(!confirm('确定重置所有数据？不可恢复。'))return;if(!confirm('再次确认：对话、日记、记忆、我们、问答，全部清除。'))return;localStorage.clear();location.reload()}
+function aH(el){let sc=document.getElementById('ca'),st=sc.scrollTop;el.style.height='34px';el.style.height=Math.min(el.scrollHeight,110)+'px';if(sc.scrollTop!==st)sc.scrollTop=st}
+function esc(s){return s?String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'):''}
+function md(t){if(!t)return'';return String(t).split(/(```[\s\S]*?```)/g).map(p=>{
+if(p.indexOf('```')===0&&p.lastIndexOf('```')===p.length-3&&p.length>5){let c=p.slice(3,-3).replace(/^\w*\n/,'');return'<pre><code>'+esc(c)+'</code></pre>'}
+let h=esc(p);
+h=h.replace(/(?:^&gt;[ \t]?.*(?:\n|$))+/gm,function(mm){let inner=mm.replace(/^&gt;[ \t]?/gm,'').replace(/\n+$/,'');return'<blockquote>'+inner.replace(/\n/g,'<br>')+'</blockquote>'});
+h=h.replace(/`([^`]+)`/g,'<code>$1</code>');h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');h=h.replace(/\*(.+?)\*/g,'<em>$1</em>');
+h=h.replace(/\n/g,'<br>');return h}).join('')}
+applyTh();
+document.getElementById('lki').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock()});
+if(sessionStorage.getItem('fw_unlock')==='1'){document.getElementById('lock').style.display='none';init()}
+</script>
+</body>
+</html>
