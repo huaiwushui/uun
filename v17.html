@@ -603,156 +603,6 @@ body.kb .inp{padding-bottom:7px}
 <div class="modal" id="dmm"><div class="mdl"><h3 id="dmt">写日记</h3><textarea id="dmi" placeholder="今天想说点什么..."></textarea><button class="dadd" onclick="document.getElementById('dfi').click()">+ 添加图片（最多3张）</button><input type="file" id="dfi" accept="image/*" multiple onchange="hDiaryImg(event)" hidden><div class="dimgp" id="dip"></div><div class="mdl-acts"><button class="btn-s" onclick="closeMd('dmm')">取消</button><button class="btn-p" id="dmSave" onclick="saveDiary()">发布</button></div></div></div>
 <div class="modal" id="umm"><div class="mdl"><h3 id="umt">编辑</h3><textarea id="umi"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('umm')">取消</button><button class="btn-p" onclick="saveUs()">保存</button></div></div></div>
 <div class="modal" id="tlm"><div class="mdl"><h3 id="tlt">记一个节点</h3><div class="sub-t">时间可以写得很粗——「1月」「去年冬天」「刚开始那会儿」都行。</div><input type="text" id="tlw" placeholder="什么时候"><div style="height:10px"></div><textarea id="tlc" placeholder="发生了什么"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('tlm')">取消</button><button class="btn-p" onclick="saveMile()">保存</button></div></div></div>
-/* ═══════════ v17.1 补丁：修复 msgs / api 错位 ═══════════ */
-function isCleanUser(m){return m&&m.role==='user'&&!m._cont&&
-!(Array.isArray(m.content)&&m.content[0]&&m.content[0].type==='tool_result')}
-
-async function contMsg(i,auto){
-let cv=S.convs[S.cur];if(!cv||S.gen)return;
-let m=cv.msgs[i];if(!m)return;if(!auto)AUTOCONT=0;
-let tail=String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' ').slice(-70);
-if(!cv.api)cv.api=[];
-cv.api.push({role:'user',_cont:true,content:'[系统提示] 你上一条说到「…'+tail+'」断了。接着说完。'});
-saveNow();await runWrap(cv)}
-
-function markConts(cv){
-let n=0;
-if(!cv||!cv.api)return 0;
-cv.api.forEach(function(m){
-if(m.role!=='user'||m._cont)return;
-let t=typeof m.content==='string'?m.content:'';
-if(t.indexOf('你上一条说到')>=0&&t.indexOf('[系统提示')===0){m._cont=true;n++}});
-return n}
-
-function alignCheck(cv){
-if(!cv||!cv.msgs||!cv.api)return null;
-let mTurns=0;
-cv.msgs.forEach(function(m){if(m.role==='user'||m.role==='sys')mTurns++});
-let aTurns=0;
-cv.api.forEach(function(m){if(isCleanUser(m))aTurns++});
-return{m:mTurns,a:aTurns,ok:mTurns===aTurns}}
-
-function fixConv(){
-let cv=S.convs[S.cur];if(!cv){toast('没有当前对话');return}
-if(cv.cold){toast('先取回');return}
-let before=(cv.api||[]).length;
-let marked=markConts(cv);
-cv.api=sanitize(cv.api||[]);
-let ck=alignCheck(cv);
-let msg='已修复「'+(cv.title||'对话')+'」\nAPI 记录 '+before+' → '+cv.api.length+' 条';
-if(marked)msg+='\n标记了 '+marked+' 条续写提示';
-if(ck)msg+='\n\n对齐检查：屏幕 '+ck.m+' 轮 / 历史 '+ck.a+' 轮\n'+(ck.ok?'✓ 完全一致':'⚠️ 仍然错位，用「深度对齐」');
-saveNow();toast(msg)}
-
-function fixAll(){
-ask('扫描并修复所有对话？',function(){
-let t=0,n=0,c=0,mk=0,bad=[];
-Object.keys(S.convs).forEach(function(id){let cv=S.convs[id];
-if(!cv||cv.cold||!cv.api)return;
-t+=cv.api.length;mk+=markConts(cv);
-cv.api=sanitize(cv.api);n+=cv.api.length;c++;
-let ck=alignCheck(cv);
-if(ck&&!ck.ok)bad.push((cv.title||'对话')+'（'+ck.m+'/'+ck.a+'）')});
-saveNow();
-let msg='修复了 '+c+' 个对话\nAPI 记录 '+t+' → '+n;
-if(mk)msg+='\n标记了 '+mk+' 条续写提示';
-if(bad.length)msg+='\n\n⚠️ 仍错位：\n'+bad.join('\n');
-else msg+='\n\n✓ 全部对齐';
-toast(msg)})}
-
-/* 深度对齐：屏幕是权威，重建整个 api */
-function deepAlign(){
-let cv=S.convs[S.cur];
-if(!cv||cv.cold){toast('没有可处理的对话');return}
-let ck=alignCheck(cv);
-ask('按屏幕上的记录重建发给我的历史。\n\n屏幕 '+(ck?ck.m:'?')+' 轮 / 历史 '+(ck?ck.a:'?')+' 轮\n\n屏幕上看到的就是唯一真相：删掉的确实删掉，留下的确实留下。\n\n代价：图片会退化成文字描述，思考链会丢。文字一个都不会少。',function(){
-let api=[];
-cv.msgs.forEach(function(m){
-if(m.err)return;
-if(m.role==='sys'){
-api.push({role:'user',content:'[系统提示] '+(m.text||'')});return}
-if(m.role==='user'){
-let c=[];
-if(m.ik&&m.ik.length)m.ik.forEach(function(k){c.push({type:'image',_k:k})});
-if(m.text)c.push({type:'text',text:m.text});
-if(!c.length)c.push({type:'text',text:'…'});
-api.push({role:'user',content:(c.length===1&&c[0].type==='text')?m.text:c});return}
-if(m.role==='assistant'){
-let c=[];
-if(m.text)c.push({type:'text',text:m.text});
-else c.push({type:'text',text:'…'});
-api.push({role:'assistant',content:c})}});
-cv.api=sanitize(api);
-pinDirty();saveNow();
-let ck2=alignCheck(cv);
-toast('重建完成\n'+cv.api.length+' 条\n\n'+(ck2&&ck2.ok?'✓ 现在完全一致':'检查：'+ck2.m+'/'+ck2.a))},true)}
-
-function delSelected(){
-if(!SEL_SET.size)return;
-ask('删除选中的 '+SEL_SET.size+' 条消息？\n\n不可恢复。',function(){
-let cv=S.convs[S.cur];if(!cv||!cv.msgs)return;
-markConts(cv);
-let idxs=Array.from(SEL_SET).sort(function(a,b){return b-a});
-idxs.forEach(function(idx){
-let m=cv.msgs[idx];if(!m)return;
-if(m.ik)m.ik.forEach(function(k){idbDel('imgs',k);IMGC.delete(k)});
-let turnK=0;
-for(let x=0;x<idx;x++){if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')turnK++}
-let cu=[];
-for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
-if(m.role==='user'||m.role==='sys'){
-let aS=cu[turnK],aE=cu[turnK+1]!==undefined?cu[turnK+1]:cv.api.length;
-if(aS!==undefined)cv.api.splice(aS,aE-aS)}
-else{
-let aS=cu[turnK]!==undefined?cu[turnK]+1:0;
-let aE=cu[turnK+1]!==undefined?cu[turnK+1]:cv.api.length;
-for(let x=aE-1;x>=aS;x--){if(cv.api[x]&&cv.api[x].role==='assistant')cv.api.splice(x,1)}}
-cv.msgs.splice(idx,1)});
-pinDirty();exitSelMode();saveNow();renderMs();refreshUse();
-let ck=alignCheck(cv);
-if(ck&&!ck.ok)toast('已删除\n\n⚠️ 检测到错位（'+ck.m+'/'+ck.a+'）\n建议用「深度对齐」');
-else toast('已删除')},true)}
-
-function delTurn(i){
-let cv=S.convs[S.cur];if(!cv||!cv.msgs||!cv.msgs[i])return;
-ask('删掉这一轮？',function(){
-markConts(cv);
-let st=i;while(st>0&&cv.msgs[st].role!=='user'&&cv.msgs[st].role!=='sys')st--;
-let en=st+1;while(en<cv.msgs.length&&cv.msgs[en].role!=='user'&&cv.msgs[en].role!=='sys')en++;
-for(let x=st;x<en;x++){let m=cv.msgs[x];
-if(m.ik)m.ik.forEach(function(k){idbDel('imgs',k);IMGC.delete(k)})}
-let k=0;for(let x=0;x<st;x++)if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')k++;
-let cu=[];for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
-let aS=cu[k]!==undefined?cu[k]:cv.api.length,aE=cu[k+1]!==undefined?cu[k+1]:cv.api.length;
-cv.api.splice(aS,aE-aS);cv.msgs.splice(st,en-st);
-pinDirty();saveNow();renderMs();refreshUse();
-let ck=alignCheck(cv);
-if(ck&&!ck.ok)toast('已删除\n\n⚠️ 错位（'+ck.m+'/'+ck.a+'）\n用「深度对齐」');
-},true)}
-
-function resendMsg(){
-let t=document.getElementById('emmi').value.trim();if(!t)return;
-let cv=S.convs[S.cur];
-markConts(cv);
-let k=0;for(let x=0;x<S.editIdx;x++)if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')k++;
-let cu=[];for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
-let aS=cu[k]!==undefined?cu[k]:cv.api.length;
-cv.msgs=cv.msgs.slice(0,S.editIdx);cv.api=cv.api.slice(0,aS);
-pinDirty();saveNow();renderMs();closeMd('emm');
-document.getElementById('mi').value=t;send()}
-
-/* 对话菜单加入深度对齐 */
-function openConvMenu(){
-let cv=S.convs[S.cur];if(!cv)return;
-let ck=alignCheck(cv);
-let h='<button class="ami" onclick="closeAm();editTitle(\''+S.cur+'\')">改标题</button>';
-h+='<button class="ami" onclick="copyConv()">复制整段对话</button>';
-h+='<button class="ami" onclick="exportConv()">单独导出</button>';
-h+='<button class="ami" onclick="closeAm();fixConv()">修复对话'+(ck&&!ck.ok?'（发现错位）':'')+'</button>';
-h+='<button class="ami'+(ck&&!ck.ok?' dan':'')+'" onclick="closeAm();deepAlign()">深度对齐'+(ck?'（屏幕 '+ck.m+' / 历史 '+ck.a+'）':'')+'</button>';
-h+='<button class="ami" onclick="closeAm()">取消</button>';
-document.getElementById('amSheet').innerHTML=h;
-document.getElementById('am').classList.add('show')}
 <script>
 const PASS='520720';
 const IS_TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
@@ -2785,6 +2635,156 @@ setTimeout(maybeGreet,800)}
 applyTh();
 document.getElementById('lki').addEventListener('keydown',function(e){if(e.key==='Enter')tryUnlock()});
 if(sessionStorage.getItem('fw_unlock')==='1'){document.getElementById('lock').style.display='none';init()}
+  /* ═══════════ v17.1 补丁：修复 msgs / api 错位 ═══════════ */
+function isCleanUser(m){return m&&m.role==='user'&&!m._cont&&
+!(Array.isArray(m.content)&&m.content[0]&&m.content[0].type==='tool_result')}
+
+async function contMsg(i,auto){
+let cv=S.convs[S.cur];if(!cv||S.gen)return;
+let m=cv.msgs[i];if(!m)return;if(!auto)AUTOCONT=0;
+let tail=String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' ').slice(-70);
+if(!cv.api)cv.api=[];
+cv.api.push({role:'user',_cont:true,content:'[系统提示] 你上一条说到「…'+tail+'」断了。接着说完。'});
+saveNow();await runWrap(cv)}
+
+function markConts(cv){
+let n=0;
+if(!cv||!cv.api)return 0;
+cv.api.forEach(function(m){
+if(m.role!=='user'||m._cont)return;
+let t=typeof m.content==='string'?m.content:'';
+if(t.indexOf('你上一条说到')>=0&&t.indexOf('[系统提示')===0){m._cont=true;n++}});
+return n}
+
+function alignCheck(cv){
+if(!cv||!cv.msgs||!cv.api)return null;
+let mTurns=0;
+cv.msgs.forEach(function(m){if(m.role==='user'||m.role==='sys')mTurns++});
+let aTurns=0;
+cv.api.forEach(function(m){if(isCleanUser(m))aTurns++});
+return{m:mTurns,a:aTurns,ok:mTurns===aTurns}}
+
+function fixConv(){
+let cv=S.convs[S.cur];if(!cv){toast('没有当前对话');return}
+if(cv.cold){toast('先取回');return}
+let before=(cv.api||[]).length;
+let marked=markConts(cv);
+cv.api=sanitize(cv.api||[]);
+let ck=alignCheck(cv);
+let msg='已修复「'+(cv.title||'对话')+'」\nAPI 记录 '+before+' → '+cv.api.length+' 条';
+if(marked)msg+='\n标记了 '+marked+' 条续写提示';
+if(ck)msg+='\n\n对齐检查：屏幕 '+ck.m+' 轮 / 历史 '+ck.a+' 轮\n'+(ck.ok?'✓ 完全一致':'⚠️ 仍然错位，用「深度对齐」');
+saveNow();toast(msg)}
+
+function fixAll(){
+ask('扫描并修复所有对话？',function(){
+let t=0,n=0,c=0,mk=0,bad=[];
+Object.keys(S.convs).forEach(function(id){let cv=S.convs[id];
+if(!cv||cv.cold||!cv.api)return;
+t+=cv.api.length;mk+=markConts(cv);
+cv.api=sanitize(cv.api);n+=cv.api.length;c++;
+let ck=alignCheck(cv);
+if(ck&&!ck.ok)bad.push((cv.title||'对话')+'（'+ck.m+'/'+ck.a+'）')});
+saveNow();
+let msg='修复了 '+c+' 个对话\nAPI 记录 '+t+' → '+n;
+if(mk)msg+='\n标记了 '+mk+' 条续写提示';
+if(bad.length)msg+='\n\n⚠️ 仍错位：\n'+bad.join('\n');
+else msg+='\n\n✓ 全部对齐';
+toast(msg)})}
+
+/* 深度对齐：屏幕是权威，重建整个 api */
+function deepAlign(){
+let cv=S.convs[S.cur];
+if(!cv||cv.cold){toast('没有可处理的对话');return}
+let ck=alignCheck(cv);
+ask('按屏幕上的记录重建发给我的历史。\n\n屏幕 '+(ck?ck.m:'?')+' 轮 / 历史 '+(ck?ck.a:'?')+' 轮\n\n屏幕上看到的就是唯一真相：删掉的确实删掉，留下的确实留下。\n\n代价：图片会退化成文字描述，思考链会丢。文字一个都不会少。',function(){
+let api=[];
+cv.msgs.forEach(function(m){
+if(m.err)return;
+if(m.role==='sys'){
+api.push({role:'user',content:'[系统提示] '+(m.text||'')});return}
+if(m.role==='user'){
+let c=[];
+if(m.ik&&m.ik.length)m.ik.forEach(function(k){c.push({type:'image',_k:k})});
+if(m.text)c.push({type:'text',text:m.text});
+if(!c.length)c.push({type:'text',text:'…'});
+api.push({role:'user',content:(c.length===1&&c[0].type==='text')?m.text:c});return}
+if(m.role==='assistant'){
+let c=[];
+if(m.text)c.push({type:'text',text:m.text});
+else c.push({type:'text',text:'…'});
+api.push({role:'assistant',content:c})}});
+cv.api=sanitize(api);
+pinDirty();saveNow();
+let ck2=alignCheck(cv);
+toast('重建完成\n'+cv.api.length+' 条\n\n'+(ck2&&ck2.ok?'✓ 现在完全一致':'检查：'+ck2.m+'/'+ck2.a))},true)}
+
+function delSelected(){
+if(!SEL_SET.size)return;
+ask('删除选中的 '+SEL_SET.size+' 条消息？\n\n不可恢复。',function(){
+let cv=S.convs[S.cur];if(!cv||!cv.msgs)return;
+markConts(cv);
+let idxs=Array.from(SEL_SET).sort(function(a,b){return b-a});
+idxs.forEach(function(idx){
+let m=cv.msgs[idx];if(!m)return;
+if(m.ik)m.ik.forEach(function(k){idbDel('imgs',k);IMGC.delete(k)});
+let turnK=0;
+for(let x=0;x<idx;x++){if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')turnK++}
+let cu=[];
+for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
+if(m.role==='user'||m.role==='sys'){
+let aS=cu[turnK],aE=cu[turnK+1]!==undefined?cu[turnK+1]:cv.api.length;
+if(aS!==undefined)cv.api.splice(aS,aE-aS)}
+else{
+let aS=cu[turnK]!==undefined?cu[turnK]+1:0;
+let aE=cu[turnK+1]!==undefined?cu[turnK+1]:cv.api.length;
+for(let x=aE-1;x>=aS;x--){if(cv.api[x]&&cv.api[x].role==='assistant')cv.api.splice(x,1)}}
+cv.msgs.splice(idx,1)});
+pinDirty();exitSelMode();saveNow();renderMs();refreshUse();
+let ck=alignCheck(cv);
+if(ck&&!ck.ok)toast('已删除\n\n⚠️ 检测到错位（'+ck.m+'/'+ck.a+'）\n建议用「深度对齐」');
+else toast('已删除')},true)}
+
+function delTurn(i){
+let cv=S.convs[S.cur];if(!cv||!cv.msgs||!cv.msgs[i])return;
+ask('删掉这一轮？',function(){
+markConts(cv);
+let st=i;while(st>0&&cv.msgs[st].role!=='user'&&cv.msgs[st].role!=='sys')st--;
+let en=st+1;while(en<cv.msgs.length&&cv.msgs[en].role!=='user'&&cv.msgs[en].role!=='sys')en++;
+for(let x=st;x<en;x++){let m=cv.msgs[x];
+if(m.ik)m.ik.forEach(function(k){idbDel('imgs',k);IMGC.delete(k)})}
+let k=0;for(let x=0;x<st;x++)if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')k++;
+let cu=[];for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
+let aS=cu[k]!==undefined?cu[k]:cv.api.length,aE=cu[k+1]!==undefined?cu[k+1]:cv.api.length;
+cv.api.splice(aS,aE-aS);cv.msgs.splice(st,en-st);
+pinDirty();saveNow();renderMs();refreshUse();
+let ck=alignCheck(cv);
+if(ck&&!ck.ok)toast('已删除\n\n⚠️ 错位（'+ck.m+'/'+ck.a+'）\n用「深度对齐」');
+},true)}
+
+function resendMsg(){
+let t=document.getElementById('emmi').value.trim();if(!t)return;
+let cv=S.convs[S.cur];
+markConts(cv);
+let k=0;for(let x=0;x<S.editIdx;x++)if(cv.msgs[x].role==='user'||cv.msgs[x].role==='sys')k++;
+let cu=[];for(let x=0;x<cv.api.length;x++)if(isCleanUser(cv.api[x]))cu.push(x);
+let aS=cu[k]!==undefined?cu[k]:cv.api.length;
+cv.msgs=cv.msgs.slice(0,S.editIdx);cv.api=cv.api.slice(0,aS);
+pinDirty();saveNow();renderMs();closeMd('emm');
+document.getElementById('mi').value=t;send()}
+
+/* 对话菜单加入深度对齐 */
+function openConvMenu(){
+let cv=S.convs[S.cur];if(!cv)return;
+let ck=alignCheck(cv);
+let h='<button class="ami" onclick="closeAm();editTitle(\''+S.cur+'\')">改标题</button>';
+h+='<button class="ami" onclick="copyConv()">复制整段对话</button>';
+h+='<button class="ami" onclick="exportConv()">单独导出</button>';
+h+='<button class="ami" onclick="closeAm();fixConv()">修复对话'+(ck&&!ck.ok?'（发现错位）':'')+'</button>';
+h+='<button class="ami'+(ck&&!ck.ok?' dan':'')+'" onclick="closeAm();deepAlign()">深度对齐'+(ck?'（屏幕 '+ck.m+' / 历史 '+ck.a+'）':'')+'</button>';
+h+='<button class="ami" onclick="closeAm()">取消</button>';
+document.getElementById('amSheet').innerHTML=h;
+document.getElementById('am').classList.add('show')}
 </script>
 </body>
 </html>
