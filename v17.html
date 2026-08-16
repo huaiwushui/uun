@@ -2908,6 +2908,33 @@ h+='<button class="ami'+(ck&&!ck.ok?' dan':'')+'" onclick="closeAm();deepAlign()
 h+='<button class="ami" onclick="closeAm()">取消</button>';
 document.getElementById('amSheet').innerHTML=h;
 document.getElementById('am').classList.add('show')}
+  
+/* ═══════════ v17.3：工具后不走神 ═══════════ */
+const _runTurn_v173=runTurn;
+runTurn=async function(cv,depth,noStream){
+if(depth>0&&cv&&cv.api&&cv.api.length){
+let last=cv.api[cv.api.length-1];
+if(last&&last.role==='user'&&Array.isArray(last.content)&&
+last.content.length&&last.content[0].type==='tool_result'&&
+!last._anchored){
+let un=S.sets.userName||'小u';
+let recent='';
+for(let i=cv.api.length-2;i>=0;i--){
+let m=cv.api[i];
+if(!isCleanUser(m))continue;
+let t='';
+if(typeof m.content==='string')t=m.content;
+else if(Array.isArray(m.content)){
+m.content.forEach(function(b){if(b.type==='text')t+=b.text})}
+t=String(t).replace(/^\[系统提示[^\]]*\]\s*/,'').trim();
+if(t){recent=t.replace(/\s+/g,' ').slice(0,180);break}}
+if(recent){
+last.content=last.content.concat([{type:'text',
+text:'\n\n———\n[工具已执行完]\n\n'+un+'刚才说的是：\n「'+recent+'」\n\n'+
+'现在回她这句话。不要提刚才用了什么工具——她屏幕上已经看到了。\n'+
+'接着说你本来想说的，用 /// 拆几条。'}];
+last._anchored=true}}}
+await _runTurn_v173(cv,depth,noStream)};
 </script>
 </body>
 </html>
