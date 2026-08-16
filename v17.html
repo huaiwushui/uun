@@ -2927,7 +2927,168 @@ var arr=last.content.slice();
 arr.push(tip);
 last.content=arr;
 last._anchored=true}}}
-await _rtA(cv,depth,noStream)};                                          
+await _rtA(cv,depth,noStream)};   
+  
+/* ═══════════ v17.4：多关键词搜索 ═══════════ */
+function qSplit(q){
+var s=String(q||'').toLowerCase().trim();
+if(!s)return null;
+var raw=s.split(/[\s,，、+]+/);
+var yes=[],no=[];
+for(var i=0;i<raw.length;i++){
+var t=raw[i];
+if(!t)continue;
+if(t.charAt(0)==='-'&&t.length>1){no.push(t.slice(1))}
+else{yes.push(t)}}
+if(!yes.length)return null;
+var solo=null;
+if(yes.length===1&&!no.length&&yes[0].length>=4)solo=yes[0];
+return{yes:yes,no:no,solo:solo}}
+
+function qParts(s){
+var out=[],n=s.length;
+function rec(i,cur){
+if(out.length>40)return;
+if(i===n){if(cur.length>1)out.push(cur.slice());return}
+for(var L=2;i+L<=n;L++){
+if(n-i-L===1)continue;
+cur.push(s.substr(i,L));
+rec(i+L,cur);
+cur.pop()}}
+rec(0,[]);
+out.sort(function(a,b){return a.length-b.length});
+return out}
+
+function findAll(t,term){
+var at=[],p=-1;
+while((p=t.indexOf(term,p+1))>=0){at.push(p);if(at.length>=8)break}
+return at}
+
+function pickTerms(t,Q){
+var i,j;
+for(i=0;i<Q.no.length;i++){if(t.indexOf(Q.no[i])>=0)return null}
+var all=true;
+for(i=0;i<Q.yes.length;i++){if(t.indexOf(Q.yes[i])<0){all=false;break}}
+if(all)return Q.yes;
+if(!Q.solo)return null;
+var ps=qParts(Q.solo);
+for(i=0;i<ps.length;i++){
+var ok=true;
+for(j=0;j<ps[i].length;j++){if(t.indexOf(ps[i][j])<0){ok=false;break}}
+if(ok)return ps[i]}
+return null}
+
+function scoreHit(txt,Q){
+var t=String(txt||'').toLowerCase();
+if(!t)return null;
+var terms=pickTerms(t,Q);
+if(!terms)return null;
+var sc=0,first=-1,marks=[],i,k;
+for(i=0;i<terms.length;i++){
+var ats=findAll(t,terms[i]);
+if(!ats.length)return null;
+sc+=ats.length*10+terms[i].length*2;
+if(ats[0]<40){sc+=8}else if(ats[0]<160){sc+=3}
+if(first<0||ats[0]<first)first=ats[0];
+for(k=0;k<ats.length;k++)marks.push({a:ats[k],l:terms[i].length})}
+if(terms.length>1){
+sc+=18;
+var lo=999999,hi=-1;
+for(i=0;i<marks.length;i++){
+if(marks[i].a<lo)lo=marks[i].a;
+if(marks[i].a>hi)hi=marks[i].a}
+var span=hi-lo;
+if(span<80){sc+=16}else if(span<300){sc+=6}}
+if(t.length>600)sc+=2;
+return{n:marks.length,at:first,sc:sc,marks:marks,terms:terms}}
+
+function doSearchAll(q,lim,scope){
+var Q=qSplit(q);
+if(!Q)return[];
+lim=lim||8;
+var an=S.sets.aiName||'Renn',un=S.sets.userName||'小u',out=[],now=Date.now();
+function add(kind,head,body,ts,extra,loc){
+var h=scoreHit(body,Q);
+if(!h)return;
+var age=(now-(ts||now))/DAY;
+out.push({kind:kind,head:head,body:String(body||''),ts:ts,at:h.at,
+marks:h.marks,loc:loc||null,
+sc:h.sc-Math.min(12,age*0.06)+(extra||0)})}
+if(!scope||scope==='chat'){
+Object.keys(S.convs).forEach(function(cid){
+var c=S.convs[cid];if(!c)return;
+if(c.cold){add('冷存对话','【'+(c.title||'对话')+'｜冷存】',String(c.pv||''),c.last,-6,null);return}
+if(!c.msgs)return;
+c.msgs.forEach(function(m,mi){
+if(m.role==='sys'||m.err)return;
+var who=m.role==='user'?un:an;
+add('对话','【'+(c.title||'对话')+'｜'+fmtFull(m.ts)+'｜'+who+'】',String(m.text||''),m.ts,m.pin?6:0,{cid:cid,i:mi})})})}
+if(!scope||scope==='diary'){
+S.diary.forEach(function(d){
+add('日记','【日记 id='+d.n+'｜'+(d.author==='user'?un:an)+'｜'+fmtFull(d.ts)+'】',String(d.content||''),d.ts,d.star?8:2)})}
+if(!scope||scope==='memory'){
+S.mems.forEach(function(m){
+add('记忆','【记忆 id='+m.n+(m.tag?'｜'+m.tag:'')+'】',String(m.content||''),m.createdAt,m.arch?0:5)})}
+if(!scope||scope==='thought'){
+S.me.th.forEach(function(t){add('念头','【'+un+'｜'+fmtFull(t.ts)+'】',String(t.content||''),t.ts,2)});
+S.ai.th.forEach(function(t){add('念头','【你的念头｜'+fmtFull(t.ts)+'】',String(t.content||''),t.ts,2)})}
+if(!scope||scope==='timeline'){
+S.timeline.forEach(function(t){add('时间线','【'+t.when+'】',String(t.what||''),t.ts,7)})}
+out.sort(function(a,b){return b.sc-a.sc});
+return out.slice(0,lim)}
+
+function hlRes(r){
+var b=r.body||'';
+var s=Math.max(0,r.at-40);
+var e=Math.min(b.length,s+180);
+var seg=b.slice(s,e),ms=[],i;
+for(i=0;i<r.marks.length;i++){
+var a=r.marks[i].a-s;
+if(a>=0&&a+r.marks[i].l<=seg.length)ms.push({a:a,l:r.marks[i].l})}
+ms.sort(function(x,y){return x.a-y.a});
+var res='',p=0;
+for(i=0;i<ms.length;i++){
+if(ms[i].a<p)continue;
+res+=esc(seg.slice(p,ms[i].a))+'<em>'+esc(seg.substr(ms[i].a,ms[i].l))+'</em>';
+p=ms[i].a+ms[i].l}
+res+=esc(seg.slice(p));
+return (s>0?'…':'')+res+(e<b.length?'…':'')}
+
+function doSearch(){
+var q=document.getElementById('sinp').value.trim();
+var gr=document.getElementById('gres'),a=document.getElementById('ca');
+if(!q){clearSearch();gr.classList.remove('show');return}
+var Q=qSplit(q);
+if(!Q){clearSearch();gr.classList.remove('show');return}
+if(S.globalSearch){
+a.classList.remove('searching');
+var rs=doSearchAll(q,60);
+document.getElementById('scnt').textContent=rs.length+'条';
+if(!rs.length){gr.innerHTML='<div class="hint-empty">没找到<br><br>多个词用空格隔开<br>减一个词试试</div>'}
+else{
+var h='';
+for(var i=0;i<rs.length;i++){
+var r=rs[i],jump='';
+if(r.loc){jump='onclick="jumpMsg(\''+r.loc.cid+'\','+r.loc.i+')"'}
+else if(r.kind.indexOf('日记')>=0){jump='onclick="go(\'diary\')"'}
+else if(r.kind==='记忆'){jump='onclick="go(\'set\');openSub(\'subMem\')"'}
+else{jump='onclick="go(\'us\')"'}
+h+='<div class="gr" '+jump+'><div class="gr-m">'+esc(r.kind)+' · '+esc(r.head)+'</div><div class="gr-t">'+hlRes(r)+'</div></div>'}
+gr.innerHTML=h}
+gr.classList.add('show')}
+else{
+gr.classList.remove('show');
+a.classList.add('searching');
+var n=0;
+document.querySelectorAll('#msgs .msg').forEach(function(m){
+var hit=pickTerms(String(m.textContent||'').toLowerCase(),Q);
+if(hit){m.classList.add('hl');m.style.contentVisibility='visible';n++}
+else{m.classList.remove('hl');m.style.removeProperty('content-visibility')}});
+document.getElementById('scnt').textContent=n+'条'}}
+
+for(var _ti=0;_ti<TOOLS.length;_ti++){
+if(TOOLS[_ti].name==='search'){
+TOOLS[_ti].description='全库搜索：对话、日记、记忆、念头、时间线。多个关键词用空格隔开是「而且」关系，例如「晚上 朋友 吃饭」只返回三个词都出现的内容。想排除某个词就在前面加减号，例如「-测试」。记不清就搜，宁可多搜一次。'}}
 </script>
 </body>
 </html>
