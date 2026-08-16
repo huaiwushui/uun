@@ -603,6 +603,13 @@ body.kb .inp{padding-bottom:7px}
 <div class="modal" id="dmm"><div class="mdl"><h3 id="dmt">写日记</h3><textarea id="dmi" placeholder="今天想说点什么..."></textarea><button class="dadd" onclick="document.getElementById('dfi').click()">+ 添加图片（最多3张）</button><input type="file" id="dfi" accept="image/*" multiple onchange="hDiaryImg(event)" hidden><div class="dimgp" id="dip"></div><div class="mdl-acts"><button class="btn-s" onclick="closeMd('dmm')">取消</button><button class="btn-p" id="dmSave" onclick="saveDiary()">发布</button></div></div></div>
 <div class="modal" id="umm"><div class="mdl"><h3 id="umt">编辑</h3><textarea id="umi"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('umm')">取消</button><button class="btn-p" onclick="saveUs()">保存</button></div></div></div>
 <div class="modal" id="tlm"><div class="mdl"><h3 id="tlt">记一个节点</h3><div class="sub-t">时间可以写得很粗——「1月」「去年冬天」「刚开始那会儿」都行。</div><input type="text" id="tlw" placeholder="什么时候"><div style="height:10px"></div><textarea id="tlc" placeholder="发生了什么"></textarea><div class="mdl-acts"><button class="btn-s" onclick="closeMd('tlm')">取消</button><button class="btn-p" onclick="saveMile()">保存</button></div></div></div>
+  <script>
+window.onerror=function(msg,src,line,col){
+var d=document.createElement('div');
+d.style.cssText='position:fixed;inset:0;z-index:99999;background:#fff;color:#000;font:13px/1.6 monospace;padding:20px;overflow:auto;white-space:pre-wrap;word-break:break-all';
+d.textContent='出错了\n\n'+msg+'\n\n行 '+line+' 列 '+col;
+document.body.appendChild(d);return true};
+</script>
 <script>
 const PASS='520720';
 const IS_TOUCH=('ontouchstart' in window)||navigator.maxTouchPoints>0;
