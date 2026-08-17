@@ -3089,6 +3089,262 @@ document.getElementById('scnt').textContent=n+'条'}}
 for(var _ti=0;_ti<TOOLS.length;_ti++){
 if(TOOLS[_ti].name==='search'){
 TOOLS[_ti].description='全库搜索：对话、日记、记忆、念头、时间线。多个关键词用空格隔开是「而且」关系，例如「晚上 朋友 吃饭」只返回三个词都出现的内容。想排除某个词就在前面加减号，例如「-测试」。记不清就搜，宁可多搜一次。'}}
+  
+/* ═══════════ v17.5：日期搜索 + 日记/记忆多关键词 ═══════════ */
+
+function parseDate(t){
+var n,m;
+if(t==='今天'||t==='今日'){n=new Date();return{y:n.getFullYear(),m:n.getMonth()+1,d:n.getDate()}}
+if(t==='昨天'||t==='昨日'){n=new Date(Date.now()-DAY);return{y:n.getFullYear(),m:n.getMonth()+1,d:n.getDate()}}
+if(t==='前天'){n=new Date(Date.now()-2*DAY);return{y:n.getFullYear(),m:n.getMonth()+1,d:n.getDate()}}
+m=t.match(/^(\d{4})[年.\/\-](\d{1,2})[月.\/\-](\d{1,2})[日号]?$/);
+if(m)return{y:parseInt(m[1]),m:parseInt(m[2]),d:parseInt(m[3])};
+m=t.match(/^(\d{1,2})[月.\/\-](\d{1,2})[日号]?$/);
+if(m){var a=parseInt(m[1]),b=parseInt(m[2]);
+if(a>=1&&a<=12&&b>=1&&b<=31)return{y:null,m:a,d:b}}
+m=t.match(/^(\d{4})[年.\-](\d{1,2})月?$/);
+if(m){var c=parseInt(m[2]);
+if(c>=1&&c<=12)return{y:parseInt(m[1]),m:c,d:null}}
+m=t.match(/^(\d{1,2})月$/);
+if(m){var e=parseInt(m[1]);
+if(e>=1&&e<=12)return{y:null,m:e,d:null}}
+m=t.match(/^(\d{4})年$/);
+if(m)return{y:parseInt(m[1]),m:null,d:null};
+m=t.match(/^(\d{1,2})[日号]$/);
+if(m){var f=parseInt(m[1]);
+if(f>=1&&f<=31)return{y:null,m:null,d:f}}
+return null}
+
+function dateOK(ts,ds){
+if(!ds||!ds.length)return true;
+if(!ts)return false;
+var dt=new Date(ts),y=dt.getFullYear(),mo=dt.getMonth()+1,dd=dt.getDate(),i,q;
+for(i=0;i<ds.length;i++){
+q=ds[i];
+if(q.y!==null&&q.y!==y)continue;
+if(q.m!==null&&q.m!==mo)continue;
+if(q.d!==null&&q.d!==dd)continue;
+return true}
+return false}
+
+function qSplit(q){
+var s=String(q||'').toLowerCase().trim();
+if(!s)return null;
+var raw=s.split(/[\s,，、+]+/);
+var yes=[],no=[],ds=[],i,t,d;
+for(i=0;i<raw.length;i++){
+t=raw[i];
+if(!t)continue;
+if(t.charAt(0)==='-'&&t.length>1){no.push(t.slice(1));continue}
+d=parseDate(t);
+if(d){ds.push(d);continue}
+yes.push(t)}
+if(!yes.length&&!ds.length)return null;
+var solo=null;
+if(yes.length===1&&!no.length&&!ds.length&&yes[0].length>=4)solo=yes[0];
+return{yes:yes,no:no,solo:solo,ds:ds}}
+
+function scoreHit(txt,Q){
+var t=String(txt||'').toLowerCase();
+var terms=pickTerms(t,Q);
+if(!terms)return null;
+if(!terms.length)return{n:0,at:0,sc:4,marks:[],terms:[]};
+var sc=0,first=-1,marks=[],i,k,ats;
+for(i=0;i<terms.length;i++){
+ats=findAll(t,terms[i]);
+if(!ats.length)return null;
+sc+=ats.length*10+terms[i].length*2;
+if(ats[0]<40){sc+=8}else if(ats[0]<160){sc+=3}
+if(first<0||ats[0]<first)first=ats[0];
+for(k=0;k<ats.length;k++)marks.push({a:ats[k],l:terms[i].length})}
+if(terms.length>1){
+sc+=18;
+var lo=999999,hi=-1;
+for(i=0;i<marks.length;i++){
+if(marks[i].a<lo)lo=marks[i].a;
+if(marks[i].a>hi)hi=marks[i].a}
+var span=hi-lo;
+if(span<80){sc+=16}else if(span<300){sc+=6}}
+if(t.length>600)sc+=2;
+return{n:marks.length,at:first<0?0:first,sc:sc,marks:marks,terms:terms}}
+
+function matchItem(txt,ts,Q){
+if(!Q)return true;
+if(!dateOK(ts,Q.ds))return false;
+return !!pickTerms(String(txt||'').toLowerCase(),Q)}
+
+function doSearchAll(q,lim,scope){
+var Q=qSplit(q);
+if(!Q)return[];
+lim=lim||8;
+var an=S.sets.aiName||'Renn',un=S.sets.userName||'小u',out=[],now=Date.now();
+var chrono=(Q.ds.length>0&&Q.yes.length===0);
+function add(kind,head,body,ts,extra,loc){
+if(!dateOK(ts,Q.ds))return;
+var h=scoreHit(body,Q);
+if(!h)return;
+var age=(now-(ts||now))/DAY;
+out.push({kind:kind,head:head,body:String(body||''),ts:ts||0,at:h.at,
+marks:h.marks,loc:loc||null,
+sc:h.sc-Math.min(12,age*0.06)+(extra||0)})}
+if(!scope||scope==='chat'){
+Object.keys(S.convs).forEach(function(cid){
+var c=S.convs[cid];if(!c)return;
+if(c.cold){add('冷存对话','【'+(c.title||'对话')+'｜冷存】',String(c.pv||''),c.last,-6,null);return}
+if(!c.msgs)return;
+c.msgs.forEach(function(m,mi){
+if(m.role==='sys'||m.err)return;
+var who=m.role==='user'?un:an;
+add('对话','【'+(c.title||'对话')+'｜'+fmtFull(m.ts)+'｜'+who+'】',String(m.text||''),m.ts,m.pin?6:0,{cid:cid,i:mi})})})}
+if(!scope||scope==='diary'){
+S.diary.forEach(function(d){
+var t=String(d.content||'');
+if(d.comments){for(var j=0;j<d.comments.length;j++)t+=' '+String(d.comments[j].content||'')}
+add('日记','【日记 id='+d.n+'｜'+(d.author==='user'?un:an)+'｜'+fmtFull(d.ts)+'】',t,d.ts,d.star?8:2)})}
+if(!scope||scope==='memory'){
+S.mems.forEach(function(m){
+add('记忆','【记忆 id='+m.n+(m.tag?'｜'+m.tag:'')+'】',String(m.content||'')+' '+String(m.tag||''),m.createdAt,m.arch?0:5)})}
+if(!scope||scope==='thought'){
+S.me.th.forEach(function(t){add('念头','【'+un+'｜'+fmtFull(t.ts)+'】',String(t.content||''),t.ts,2)});
+S.ai.th.forEach(function(t){add('念头','【你的念头｜'+fmtFull(t.ts)+'】',String(t.content||''),t.ts,2)})}
+if(!scope||scope==='timeline'){
+S.timeline.forEach(function(t){add('时间线','【'+t.when+'】',String(t.what||''),t.ts,7)})}
+if(chrono){out.sort(function(a,b){return a.ts-b.ts})}
+else{out.sort(function(a,b){return b.sc-a.sc})}
+return out.slice(0,lim)}
+
+function doSearch(){
+var q=document.getElementById('sinp').value.trim();
+var gr=document.getElementById('gres'),a=document.getElementById('ca');
+if(!q){clearSearch();gr.classList.remove('show');return}
+var Q=qSplit(q);
+if(!Q){clearSearch();gr.classList.remove('show');return}
+if(S.globalSearch){
+a.classList.remove('searching');
+var rs=doSearchAll(q,80);
+document.getElementById('scnt').textContent=rs.length+'条';
+if(!rs.length){gr.innerHTML='<div class="hint-empty">没找到<br><br>多个词用空格隔开<br>日期写 3.15 或 3月15日</div>'}
+else{
+var h='',i,r,jump;
+for(i=0;i<rs.length;i++){
+r=rs[i];jump='';
+if(r.loc){jump='onclick="jumpMsg(\''+r.loc.cid+'\','+r.loc.i+')"'}
+else if(r.kind.indexOf('日记')>=0){jump='onclick="go(\'diary\')"'}
+else if(r.kind==='记忆'){jump='onclick="go(\'set\');openSub(\'subMem\')"'}
+else{jump='onclick="go(\'us\')"'}
+h+='<div class="gr" '+jump+'><div class="gr-m">'+esc(r.kind)+' · '+esc(r.head)+'</div><div class="gr-t">'+hlRes(r)+'</div></div>'}
+gr.innerHTML=h}
+gr.classList.add('show')}
+else{
+gr.classList.remove('show');
+a.classList.add('searching');
+var cv=S.convs[S.cur],n=0;
+document.querySelectorAll('#msgs .msg').forEach(function(el){
+var idx=parseInt(el.dataset.i);
+var ts=(cv&&cv.msgs&&cv.msgs[idx])?cv.msgs[idx].ts:0;
+if(matchItem(String(el.textContent||''),ts,Q)){
+el.classList.add('hl');el.style.contentVisibility='visible';n++}
+else{el.classList.remove('hl');el.style.removeProperty('content-visibility')}});
+document.getElementById('scnt').textContent=n+'条'}}
+
+function rDiary(){
+var l=document.getElementById('dl');if(!l)return;
+l.innerHTML='';
+var dsb=document.getElementById('dsbar');
+var q=(dsb&&dsb.classList.contains('show'))?document.getElementById('dsinp').value.trim():'';
+var Q=q?qSplit(q):null;
+var an=esc(S.sets.aiName||'Renn'),un=esc(S.sets.userName||'我');
+var list=[],i,j,d,t;
+for(i=0;i<S.diary.length;i++){
+d=S.diary[i];
+if(!Q){list.push(d);continue}
+t=String(d.content||'');
+if(d.comments){for(j=0;j<d.comments.length;j++)t+=' '+String(d.comments[j].content||'')}
+if(matchItem(t,d.ts,Q))list.push(d)}
+var dc=document.getElementById('dscnt');
+if(dc)dc.textContent=q?(list.length+'篇'):'';
+if(!list.length){
+l.innerHTML='<div class="hint-empty">'+(q?'没有匹配<br><br>多个词用空格隔开<br>日期写 3.15 或 3月15日':'还没有日记<br>点右上角 ＋ 写第一篇')+'</div>';
+return}
+var curM='';
+list.slice().reverse().forEach(function(d){
+var isMe=d.author==='user';
+var dt=new Date(d.ts),mk=dt.getFullYear()+' 年 '+(dt.getMonth()+1)+' 月';
+if(mk!==curM&&!q){curM=mk;
+var g=document.createElement('div');g.className='mgrp';g.textContent=mk;l.appendChild(g)}
+var c=document.createElement('div');c.className='dc'+(d.star?' star':'');
+var h='<div class="dc-hd"><div class="dc-who"><span class="dc-dot'+(isMe?' me':'')+'"></span><span class="dc-name">'+(isMe?un:an)+'</span><span class="dc-time">'+(d.star?'★ ':'')+fmtFull(d.ts)+'</span></div><div class="dc-tools">';
+if(isMe)h+='<button onclick="editDiary('+d.n+')">编辑</button>';
+h+='<button onclick="delDiary('+d.n+')">删除</button></div></div>';
+if(d.ik&&d.ik.length){h+='<div class="dc-imgs'+(d.ik.length>1?' multi':'')+'">';
+d.ik.forEach(function(k){h+='<img data-k="'+k+'" onclick="if(this.src)lb(this.src)">'});
+h+='</div>'}
+if(d.content)h+='<div class="dc-body">'+esc(d.content)+'</div>';
+if(d.why)h+='<div class="dc-edited" style="color:var(--ac)">收藏理由：'+esc(d.why)+'</div>';
+if(d.editedTs)h+='<div class="dc-edited">'+fmtFull(d.editedTs)+' 被改过</div>';
+h+='<div class="dc-cmts">';
+if(d.comments&&d.comments.length){d.comments.forEach(function(cm,ci){
+var me=cm.author==='user';
+h+='<div class="cmt"><div class="cmt-hd"><span class="cmt-name'+(me?' me':'')+'">'+(me?un:an)+'</span><span class="cmt-time">'+fmtFull(cm.ts)+'</span><button class="cmt-x" onclick="delCmt('+d.n+','+ci+')">×</button></div><div class="cmt-body">'+esc(cm.content)+'</div></div>'})}
+h+='<div class="cmt-add"><input id="ci'+d.n+'" placeholder="说点什么..."><button onclick="addCmt('+d.n+')">发送</button></div></div>';
+c.innerHTML=h;l.appendChild(c);
+if(d.ik&&d.ik.length)eagerImgsIn(c)})}
+
+function rMems(){
+var l=document.getElementById('ml');if(!l)return;
+var msi=document.getElementById('ms');
+var q=msi?msi.value.trim():'';
+var Q=q?qSplit(q):null;
+l.innerHTML='';
+var fl=[],i;
+for(i=0;i<S.mems.length;i++){
+var m=S.mems[i];
+if(!Q){fl.push(m);continue}
+if(matchItem(String(m.content||'')+' '+String(m.tag||''),m.createdAt,Q))fl.push(m)}
+if(!fl.length){
+l.innerHTML='<div class="hint-empty">'+(q?'没有匹配<br><br>多个词用空格隔开<br>日期写 3.15 或 3月15日':'还没有记忆碎片')+'</div>';
+return}
+var byTag={},noTag=[];
+fl.forEach(function(m){
+if(m.tag){if(!byTag[m.tag])byTag[m.tag]=[];byTag[m.tag].push(m)}
+else{noTag.push(m)}});
+function card(m){
+var d=document.createElement('div');
+d.className='mc'+(m.locked?' locked':'')+(m.arch?' arch':'')+(m.sure==='inferred'?' inferred':'');
+var dt=m.createdAt?new Date(m.createdAt).toLocaleDateString('zh-CN'):'';
+d.innerHTML='<div class="mc-body">'+esc(m.content)+'</div><div class="mc-ft"><span>'+
+'<span class="mc-id">#'+m.n+'</span> '+
+(m.tag?'<span class="mc-tag">'+esc(m.tag)+'</span>':'')+
+(m.sure==='inferred'?'<span class="mc-sure">推断</span>':'')+
+dt+(m.arch?' <span class="archmk">抽屉里</span>':'')+'</span>'+
+'<div class="mc-acts">'+
+(m.sure==='inferred'?'<button onclick="confirmMem('+m.n+')">确认</button>':'')+
+'<button class="lk" onclick="tgLock('+m.n+')">'+(m.locked?'锁定':'未锁')+'</button>'+
+'<button onclick="tgArch('+m.n+')">'+(m.arch?'放回':'收起')+'</button>'+
+'<button onclick="editMem('+m.n+')" '+(m.locked?'disabled':'')+'>编辑</button>'+
+'<button onclick="delMem('+m.n+')" '+(m.locked?'disabled':'')+'>删除</button></div></div>';
+return d}
+Object.keys(byTag).forEach(function(g){
+var t=document.createElement('div');t.className='mgrp';
+t.textContent=g+'　'+byTag[g].length+' 条';l.appendChild(t);
+byTag[g].slice().reverse().forEach(function(m){l.appendChild(card(m))})});
+if(noTag.length){
+if(Object.keys(byTag).length){
+var t2=document.createElement('div');t2.className='mgrp';
+t2.textContent='未分组　'+noTag.length+' 条';l.appendChild(t2)}
+noTag.slice().reverse().forEach(function(m){l.appendChild(card(m))})}}
+
+for(var _ti2=0;_ti2<TOOLS.length;_ti2++){
+if(TOOLS[_ti2].name==='search'){
+TOOLS[_ti2].description='全库搜索：对话、日记、记忆、念头、时间线。多个关键词用空格隔开是「而且」关系，例如「晚上 朋友 吃饭」只返回三个词都出现的。减号排除，例如「-测试」。也能按日期搜：「3.15」「3月15日」「2026.3.15」「3月」「今天」「昨天」都认。日期能和关键词混用，「3.15 朋友」= 3月15号提到朋友的内容。只给日期不给关键词时，结果按时间正序排，像一份那天的时间线。'}}
+
+setTimeout(function(){
+var a=document.getElementById('dsinp');
+if(a)a.placeholder='搜日记…可用空格分词、3.15';
+var b=document.getElementById('ms');
+if(b)b.placeholder='搜记忆…可用空格分词、3.15';
+var c=document.getElementById('sinp');
+if(c&&!S.globalSearch)c.placeholder='搜索当前对话…';},300);
 </script>
 </body>
 </html>
