@@ -3402,6 +3402,81 @@ return out.slice(0,lim)}
 for(var _ti3=0;_ti3<TOOLS.length;_ti3++){
 if(TOOLS[_ti3].name==='reply_thought'){
 TOOLS[_ti3].description='回她念头流里的某一条。id 用念头上标的那个数字。上下文里只有最近 25 条，更早的用 search 搜出来，搜索结果里会带 id。'}}
+  
+/* ═══════════ v17.7 ═══════════ */
+
+/* 停掉 v17.3 的写入行为 */
+runTurn=_rtA;
+
+/* 清掉已经写进历史的那些提示 */
+function stripTips(){
+var n=0;
+Object.keys(S.convs).forEach(function(id){
+var cv=S.convs[id];
+if(!cv||cv.cold||!cv.api)return;
+cv.api.forEach(function(m){
+if(!m._anchored||!Array.isArray(m.content))return;
+var arr=[],i,b;
+for(i=0;i<m.content.length;i++){
+b=m.content[i];
+if(b.type==='text'&&String(b.text||'').indexOf('[工具执行完了]')===0){n++;continue}
+arr.push(b)}
+if(arr.length)m.content=arr;
+delete m._anchored})});
+saveNow();
+return n}
+
+/* 发送时临时拼提示 + 折叠旧图，都不落盘 */
+var _bam7=buildApiMs;
+buildApiMs=function(cv){
+var out=_bam7(cv);
+if(!out.length)return out;
+var i,j,k,m,b,t;
+for(i=0;i<out.length-2;i++){
+m=out[i];
+if(m.role!=='user'||!Array.isArray(m.content))continue;
+if(!m.content[0]||m.content[0].type!=='tool_result')continue;
+var ch=false,nc=[];
+for(j=0;j<m.content.length;j++){
+b=m.content[j];
+if(b.type==='tool_result'&&Array.isArray(b.content)){
+var inn=[];
+for(k=0;k<b.content.length;k++){
+if(b.content[k].type==='image'){inn.push({type:'text',text:'[取回的图已折叠]'});ch=true}
+else{inn.push(b.content[k])}}
+nc.push({type:'tool_result',tool_use_id:b.tool_use_id,content:inn})}
+else{nc.push(b)}}
+if(ch)out[i]={role:'user',content:nc}}
+var last=out[out.length-1];
+if(!last||last.role!=='user'||!Array.isArray(last.content))return out;
+if(!last.content.length||last.content[0].type!=='tool_result')return out;
+var un=S.sets.userName||'小u',recent='';
+for(i=out.length-2;i>=0;i--){
+m=out[i];
+if(!isCleanUser(m))continue;
+t='';
+if(typeof m.content==='string'){t=m.content}
+else if(Array.isArray(m.content)){
+for(j=0;j<m.content.length;j++){
+if(m.content[j].type==='text')t+=m.content[j].text}}
+t=String(t).replace(/\s+/g,' ');
+t=t.replace(/^\s+/,'');
+if(!t)continue;
+if(t.indexOf('[系统提示')===0)continue;
+recent=t.slice(0,180);
+break}
+if(!recent)return out;
+var arr=last.content.slice();
+arr.push({type:'text',text:'[工具执行完了]\n\n'+un+'刚才说的是：\n'+recent+'\n\n现在回她这句话。不要提用了什么工具。记得拆气泡。'});
+out[out.length-1]={role:'user',content:arr};
+return out};
+
+/* 首次运行自动清理一次 */
+if(!localStorage.getItem('fw_tipclean')){
+setTimeout(function(){
+var n=stripTips();
+try{localStorage.setItem('fw_tipclean','1')}catch(e){}
+if(n)toast('清掉了 '+n+' 条写进历史的工具提示')},1500)}
 </script>
 </body>
 </html>
