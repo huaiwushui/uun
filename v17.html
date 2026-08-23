@@ -3345,6 +3345,63 @@ var b=document.getElementById('ms');
 if(b)b.placeholder='搜记忆…可用空格分词、3.15';
 var c=document.getElementById('sinp');
 if(c&&!S.globalSearch)c.placeholder='搜索当前对话…';},300);
+  
+/* ═══════════ v17.6：放开多工具 + 念头 id ═══════════ */
+var _bs1=buildStatic;
+buildStatic=function(){
+var s=_bs1();
+return s.replace('工具不用每轮都用。一轮最多一个。\n先把话说完，工具是顺手的事。',
+'一次可以同时做几件事。写念头的同时钉一句话、记记忆的同时更新此刻，都可以一起发出去。\n真有几件事就一起做，没有别硬凑。\n工具是顺手的事，不是任务。')};
+
+function doSearchAll(q,lim,scope){
+var Q=qSplit(q);
+if(!Q)return[];
+lim=lim||8;
+var an=S.sets.aiName||'Renn',un=S.sets.userName||'小u',out=[],now=Date.now();
+var chrono=(Q.ds.length>0&&Q.yes.length===0);
+function add(kind,head,body,ts,extra,loc){
+if(!dateOK(ts,Q.ds))return;
+var h=scoreHit(body,Q);
+if(!h)return;
+var age=(now-(ts||now))/DAY;
+out.push({kind:kind,head:head,body:String(body||''),ts:ts||0,at:h.at,
+marks:h.marks,loc:loc||null,
+sc:h.sc-Math.min(12,age*0.06)+(extra||0)})}
+if(!scope||scope==='chat'){
+Object.keys(S.convs).forEach(function(cid){
+var c=S.convs[cid];if(!c)return;
+if(c.cold){add('冷存对话','【'+(c.title||'对话')+'｜冷存】',String(c.pv||''),c.last,-6,null);return}
+if(!c.msgs)return;
+c.msgs.forEach(function(m,mi){
+if(m.role==='sys'||m.err)return;
+var who=m.role==='user'?un:an;
+add('对话','【'+(c.title||'对话')+'｜'+fmtFull(m.ts)+'｜'+who+'】',String(m.text||''),m.ts,m.pin?6:0,{cid:cid,i:mi})})})}
+if(!scope||scope==='diary'){
+S.diary.forEach(function(d){
+var t=String(d.content||''),j;
+if(d.comments){for(j=0;j<d.comments.length;j++)t+=' '+String(d.comments[j].content||'')}
+add('日记','【日记 id='+d.n+'｜'+(d.author==='user'?un:an)+'｜'+fmtFull(d.ts)+'】',t,d.ts,d.star?8:2)})}
+if(!scope||scope==='memory'){
+S.mems.forEach(function(m){
+add('记忆','【记忆 id='+m.n+(m.tag?'｜'+m.tag:'')+'】',String(m.content||'')+' '+String(m.tag||''),m.createdAt,m.arch?0:5)})}
+if(!scope||scope==='thought'){
+S.me.th.forEach(function(t){
+var x=String(t.content||''),j;
+if(t.replies){for(j=0;j<t.replies.length;j++)x+=' '+String(t.replies[j].content||'')}
+add('念头','【'+un+'的念头 id='+t.n+'｜'+fmtFull(t.ts)+'｜可以 reply_thought 回】',x,t.ts,2)});
+S.ai.th.forEach(function(t){
+var x=String(t.content||''),j;
+if(t.replies){for(j=0;j<t.replies.length;j++)x+=' '+String(t.replies[j].content||'')}
+add('念头','【你自己的念头 id='+t.n+'｜'+fmtFull(t.ts)+'】',x,t.ts,2)})}
+if(!scope||scope==='timeline'){
+S.timeline.forEach(function(t){add('时间线','【'+t.when+'】',String(t.what||''),t.ts,7)})}
+if(chrono){out.sort(function(a,b){return a.ts-b.ts})}
+else{out.sort(function(a,b){return b.sc-a.sc})}
+return out.slice(0,lim)}
+
+for(var _ti3=0;_ti3<TOOLS.length;_ti3++){
+if(TOOLS[_ti3].name==='reply_thought'){
+TOOLS[_ti3].description='回她念头流里的某一条。id 用念头上标的那个数字。上下文里只有最近 25 条，更早的用 search 搜出来，搜索结果里会带 id。'}}
 </script>
 </body>
 </html>
