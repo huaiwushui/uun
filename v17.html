@@ -3997,6 +3997,531 @@ setTimeout(function(){
 var n=stripTips();
 try{localStorage.setItem('fw_tipclean','1')}catch(e){}
 if(n)toast('清掉了 '+n+' 条写进历史的工具提示')},1500)}
+  
+/* ═══════════ v18.3：图片找得回来 ═══════════ */
+
+/* ── 折叠占位改用图片 key，永不错位 ── */
+function buildApiMs(cv){
+var api=(cv&&cv.api)||[],n=api.length,i,j,k,b,m;
+var turns=parseInt(S.sets.ctxTurns);
+if(isNaN(turns)||turns<=0)turns=20;
+var imgT=parseInt(S.sets.imgTurns);
+if(isNaN(imgT)||imgT<0)imgT=3;
+var cu=[];
+for(i=0;i<n;i++){if(isCleanUser(api[i]))cu.push(i)}
+var start=(cu.length>turns)?cu[cu.length-turns]:0;
+var imgStart=(cu.length>imgT)?cu[cu.length-imgT]:0;
+var out=[];
+for(i=start;i<n;i++){
+m=api[i];
+var isTR=(m.role==='user'&&Array.isArray(m.content)&&m.content[0]&&m.content[0].type==='tool_result');
+if(isTR){out.push(m);continue}
+if(m.role==='user'&&Array.isArray(m.content)){
+var hasImg=false;
+for(j=0;j<m.content.length;j++){if(m.content[j].type==='image')hasImg=true}
+if(hasImg){
+var nc=[];
+for(j=0;j<m.content.length;j++){
+b=m.content[j];
+if(b.type==='image'){
+if(i<imgStart){
+nc.push({type:'text',text:'[有张图，折叠了。ref='+(b._k||'?')+'　要看就 recall_image(ref="…")]'})}
+else{nc.push(b)}}
+else{nc.push(b)}}
+out.push({role:'user',content:nc});continue}}
+if(m.role==='assistant'&&Array.isArray(m.content)){
+var f=[];
+for(j=0;j<m.content.length;j++){
+var ty=m.content[j].type;
+if(ty!=='thinking'&&ty!=='redacted_thinking')f.push(m.content[j])}
+if(!f.length)f=[{type:'text',text:'…'}];
+out.push({role:'assistant',content:f});continue}
+out.push(m)}
+out=sanitize(out);
+if(!out.length)return out;
+var stop=Math.max(0,out.length-3);
+for(i=0;i<stop;i++){
+m=out[i];
+if(m.role!=='user'||!Array.isArray(m.content))continue;
+if(!m.content[0]||m.content[0].type!=='tool_result')continue;
+var ch=false,c2=[];
+for(j=0;j<m.content.length;j++){
+b=m.content[j];
+if(b.type==='tool_result'&&typeof b.content==='string'&&b.content.indexOf('[网页]')===0){
+c2.push({type:'tool_result',tool_use_id:b.tool_use_id,
+content:b.content.slice(0,50).replace(/\n/g,' ')+'…（网页内容已折叠，要看就再搜）'});
+ch=true}
+else if(b.type==='tool_result'&&Array.isArray(b.content)){
+var inn=[];
+for(k=0;k<b.content.length;k++){
+if(b.content[k].type==='image'){inn.push({type:'text',text:'[取回的图已折叠，需要就再 recall 一次]'});ch=true}
+else{inn.push(b.content[k])}}
+c2.push({type:'tool_result',tool_use_id:b.tool_use_id,content:inn})}
+else{c2.push(b)}}
+if(ch)out[i]={role:'user',content:c2}}
+var last=out[out.length-1];
+if(!last||last.role!=='user'||!Array.isArray(last.content))return out;
+if(!last.content.length||last.content[0].type!=='tool_result')return out;
+var un=S.sets.userName||'小u',recent='',t;
+for(i=out.length-2;i>=0;i--){
+m=out[i];
+if(!isCleanUser(m))continue;
+t='';
+if(typeof m.content==='string'){t=m.content}
+else if(Array.isArray(m.content)){
+for(j=0;j<m.content.length;j++){
+if(m.content[j].type==='text')t+=m.content[j].text}}
+t=String(t).replace(/\s+/g,' ').replace(/^\s+/,'');
+if(!t)continue;
+if(t.indexOf('[系统提示')===0)continue;
+recent=t.slice(0,180);break}
+if(!recent)return out;
+var arr=last.content.slice();
+arr.push({type:'text',text:'[工具执行完了]\n\n'+un+'刚才说的是：\n'+recent+
+'\n\n现在回她这句话。不要提用了什么工具。记得拆气泡。'});
+out[out.length-1]={role:'user',content:arr};
+return out}
+
+/* ── 全库图片清单 ── */
+function allImgs(){
+var out=[],un=S.sets.userName||'小u',an=S.sets.aiName||'Renn';
+Object.keys(S.convs).forEach(function(cid){
+var c=S.convs[cid];
+if(!c||c.cold||!c.msgs)return;
+c.msgs.forEach(function(m,mi){
+if(!m.ik||!m.ik.length)return;
+m.ik.forEach(function(k){
+out.push({k:k,ts:m.ts||0,where:'对话「'+(c.title||'对话')+'」',
+who:(m.role==='user'?un:an),
+text:String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' '),
+cid:cid,mi:mi})})})});
+S.diary.forEach(function(d){
+if(!d.ik||!d.ik.length)return;
+d.ik.forEach(function(k){
+out.push({k:k,ts:d.ts||0,where:'日记 D'+d.n,
+who:(d.author==='user'?un:an),
+text:String(d.content||'').replace(/\s+/g,' ')})})});
+out.sort(function(a,b){return b.ts-a.ts});
+return out}
+
+TOOLS.push({name:'list_images',description:'列出发过的图片，给出每张的 ref 和当时说的话。只发图没打字的消息 search 搜不到，想找旧图就用这个。拿到 ref 再用 recall_image 看。',
+input_schema:{type:'object',properties:{
+date:{type:'string',description:'只看某天，写 3.15 / 3月15日 / 今天 / 昨天。可空'},
+limit:{type:'integer',description:'默认 20'}},required:[]}});
+
+(function(){
+var i;
+for(i=0;i<TOOLS.length;i++){
+if(TOOLS[i].name==='recall_image'){
+TOOLS[i].description='取回一张折叠的图。ref 填折叠提示里给的那一串，或者 list_images 列出来的。跨对话也能取。';
+TOOLS[i].input_schema={type:'object',properties:{
+ref:{type:'string',description:'图片的 ref，形如 im1a2b3c'},
+index:{type:'integer',description:'老式序号，能用 ref 就别用这个'}},required:[]}}}})();
+
+var _etImg=execTool;
+execTool=function(n,i){
+var r;
+i=i||{};
+
+if(n==='list_images'){
+var arr=allImgs();
+var lim=parseInt(i.limit);
+if(isNaN(lim)||lim<1)lim=20;
+if(lim>60)lim=60;
+if(i.date){
+var Q=qSplit(String(i.date));
+if(Q&&Q.ds.length){
+arr=arr.filter(function(x){return dateOK(x.ts,Q.ds)})}}
+if(!arr.length){
+r=i.date?('那天没有图片。全库一共 '+allImgs().length+' 张。'):'一张图都没有。'}
+else{
+var o='共 '+arr.length+' 张'+(arr.length>lim?('，列最近 '+lim+' 张'):'')+'：\n\n';
+arr.slice(0,lim).forEach(function(x){
+o+='ref='+x.k+'\n'+fmtFull(x.ts)+'　'+x.where+'　'+x.who+'\n';
+o+=x.text?('当时说：'+x.text.slice(0,60)+(x.text.length>60?'…':'')+'\n\n'):'（只发了图，没打字）\n\n'});
+o+='———\n想看哪张就 recall_image(ref="…")。一次别取太多，图很占地方。';
+r=o}
+logTool(n,i,r);return r}
+
+if(n==='recall_image'){
+var ref=String(i.ref||'').trim();
+if(ref){
+if(ref.indexOf('im')!==0){
+var mm=ref.match(/im[0-9a-z]+/i);
+if(mm)ref=mm[0]}
+r='PENDING:'+ref;
+logTool(n,i,'取回 ref='+ref);
+return r}
+var idx=parseInt(i.index);
+if(isNaN(idx)){
+r='失败：没给 ref。用 list_images 看一眼有哪些图，它会给出每张的 ref。';
+logTool(n,i,r);return r}
+var cv=S.convs[S.cur],ks=[];
+if(cv&&cv.msgs){
+cv.msgs.forEach(function(m){if(m.ik)m.ik.forEach(function(k){ks.push(k)})})}
+if(!ks[idx]){
+r='失败：这个对话只有 '+ks.length+' 张图，没有第 '+idx+' 张。用 list_images 拿准确的 ref。';
+logTool(n,i,r);return r}
+r='PENDING:'+ks[idx];
+logTool(n,i,'取回 index='+idx);
+return r}
+
+return _etImg(n,i)};
+
+var _etaImg=execToolAsync;
+execToolAsync=async function(n,i){
+var r=await _etaImg(n,i);
+if(typeof r==='string'&&r.indexOf('失败：图片已不在')===0){
+return'失败：这张图已经不在了（可能被清理过）。别猜里面是什么，跟她说图找不到了。'}
+return r};
+
+/* ── 搜索结果标出有图 ── */
+var _dsaImg=doSearchAll;
+doSearchAll=function(q,lim,scope){
+var rs=_dsaImg(q,lim,scope),i,r,c,m;
+for(i=0;i<rs.length;i++){
+r=rs[i];
+if(!r.loc)continue;
+c=S.convs[r.loc.cid];
+if(!c||!c.msgs)continue;
+m=c.msgs[r.loc.i];
+if(m&&m.ik&&m.ik.length){
+r.head=r.head.replace(/】$/,'｜'+m.ik.length+' 张图 ref='+m.ik.join(' ')+'】')}}
+return rs};
+
+/* ── 清理旧图时同步 api，不留死引用 ── */
+function purgeImgs(){
+ask('每个对话只留最近 10 张图？',function(){
+var n=0;
+Object.keys(S.convs).forEach(function(id){
+var c=S.convs[id];
+if(!c||c.cold||!c.msgs)return;
+var all=[];
+c.msgs.forEach(function(m,mi){
+if(m.ik)m.ik.forEach(function(k){all.push({mi:mi,k:k})})});
+if(all.length<=10)return;
+var kill=all.slice(0,all.length-10),dead={};
+kill.forEach(function(e){
+dead[e.k]=1;
+idbDel('imgs',e.k);
+IMGC.delete(e.k);
+var m=c.msgs[e.mi];
+if(m&&m.ik){
+m.ik=m.ik.filter(function(x){return x!==e.k});
+if(!m.ik.length){delete m.ik;m.imgGone=true}}
+n++});
+if(c.api){
+c.api.forEach(function(am,ai){
+if(!Array.isArray(am.content))return;
+var ch=false,nc=[];
+am.content.forEach(function(b){
+if(b.type==='image'&&b._k&&dead[b._k]){
+nc.push({type:'text',text:'[这张图已被清理]'});ch=true}
+else{nc.push(b)}});
+if(ch)c.api[ai]={role:am.role,content:nc}})}});
+saveNow();renderMs();refreshUse();
+toast('清掉了 '+n+' 张\nAPI 历史里的引用也一起处理了')},true)}
+
+/* ── 提示词 ── */
+var _bsImg=buildStatic;
+buildStatic=function(){
+var s=_bsImg();
+if(!S.sets.tools)return s;
+var L=[];
+L.push('[图片]');
+L.push('超过图片轮数的图会折叠成一行 ref=xxx。想看就 recall_image(ref="xxx")。');
+L.push('ref 是图片自己的编号，跨对话也认，永远不会指错。');
+L.push('');
+L.push('只发图没打字的消息，search 搜不到——因为没有文字可搜。');
+L.push('她说「之前发的那张图」而你上下文里没有，用 list_images 找。');
+L.push('能按日期筛：list_images(date="3.15")。');
+L.push('');
+L.push('没真取回来之前，不要描述图里有什么。');
+L.push('取不回来就说图找不到了，别编。');
+return s+'\n\n'+L.join('\n')};
+
+var _tlImg=toolLabel;
+toolLabel=function(n){
+if(n==='list_images')return'翻了翻发过的图';
+return _tlImg(n)};
+
+/* ═══════════ v18.3 追加：前后文 + 滚动 ═══════════ */
+
+/* ── read_around：认各种 ref，冷存自动取回 ── */
+var _etRA=execTool;
+execTool=function(n,i){
+i=i||{};
+if(n!=='read_around')return _etRA(n,i);
+var raw=String(i.ref||'').trim(),r;
+if(!raw){
+r='失败：没给 ref。搜索结果里每条对话后面都有一行 ref=…，把它填进来。';
+logTool(n,i,r);return r}
+var mm=raw.match(/([0-9]{10,})\s*[:：]\s*(\d+)/);
+var cid=null,idx=-1;
+if(mm){cid=mm[1];idx=parseInt(mm[2])}
+else{
+var p=raw.split(/[:：]/);
+if(p.length>=2){cid=p[0].trim();idx=parseInt(p[1])}}
+if(!cid||isNaN(idx)){
+r='失败：ref 看不懂（「'+raw.slice(0,40)+'」）。正确的样子是 ref=1756... : 12，直接抄搜索结果里那一行。';
+logTool(n,i,r);return r}
+var c=S.convs[cid];
+if(!c){
+r='失败：那个对话不在了。';
+logTool(n,i,r);return r}
+if(c.cold){
+warmOne(cid).then(function(ok){if(ok){renderCL();toast('已取回冷存对话')}});
+r='「'+(c.title||'对话')+'」在冷存里，正在取回。下一轮再 read_around 同一个 ref 就能读到了。';
+logTool(n,i,r);return r}
+if(!c.msgs||!c.msgs[idx]){
+r='失败：位置越界。「'+(c.title||'对话')+'」一共 '+((c.msgs&&c.msgs.length)||0)+' 条。';
+logTool(n,i,r);return r}
+var sp=parseInt(i.span);
+if(isNaN(sp)||sp<1)sp=5;
+if(sp>15)sp=15;
+var an=S.sets.aiName||'Renn',un=S.sets.userName||'小u';
+var before=[],after=[],k,x;
+for(k=idx-1;k>=0&&before.length<sp;k--){
+x=c.msgs[k];
+if(x&&x.role!=='sys'&&!x.err)before.unshift({m:x,i:k})}
+for(k=idx+1;k<c.msgs.length&&after.length<sp;k++){
+x=c.msgs[k];
+if(x&&x.role!=='sys'&&!x.err)after.push({m:x,i:k})}
+function line(o){
+var m=o.m,s='— '+(m.role==='user'?un:an)+'（'+fmtTs(m.ts)+'）';
+if(m.pin)s+=' 📌';
+s+='\n'+String(m.text||'').replace(/\n*\/\/\/+\n*/g,'\n');
+if(m.ik&&m.ik.length)s+='\n['+m.ik.length+' 张图 ref='+m.ik.join(' ')+']';
+if(!m.text&&!(m.ik&&m.ik.length))s+='\n（空）';
+return s+'\n\n'}
+var o='【'+(c.title||'对话')+'】前后各 '+sp+' 条\n';
+if(before.length&&before[0].i>0)o+='（上面还有 '+before[0].i+' 条）\n';
+o+='\n';
+before.forEach(function(e){o+=line(e)});
+var me=c.msgs[idx];
+o+='━━ 这一条 ━━\n'+(me.role==='user'?un:an)+'（'+fmtFull(me.ts)+'）\n'+
+String(me.text||'').replace(/\n*\/\/\/+\n*/g,'\n');
+if(me.ik&&me.ik.length)o+='\n['+me.ik.length+' 张图 ref='+me.ik.join(' ')+']';
+o+='\n━━━━━━━━\n\n';
+after.forEach(function(e){o+=line(e)});
+var tailLeft=c.msgs.length-1-(after.length?after[after.length-1].i:idx);
+if(tailLeft>0)o+='（下面还有 '+tailLeft+' 条）\n';
+o+='\n往前再翻就用 ref='+cid+':'+(before.length?before[0].i:idx)+
+'　往后用 ref='+cid+':'+(after.length?after[after.length-1].i:idx);
+logTool(n,i,'读了 '+cid+':'+idx+' 前后 '+sp);
+return o};
+
+(function(){
+var i;
+for(i=0;i<TOOLS.length;i++){
+if(TOOLS[i].name==='read_around'){
+TOOLS[i].description='展开搜索结果的前后文，看那句话前后各说了什么。ref 直接抄搜索结果里的那一行。span 是前后各几条，默认 5，最多 15。返回的末尾会给出继续往前/往后翻的 ref——想一直读下去就接着用。';
+TOOLS[i].input_schema={type:'object',properties:{
+ref:{type:'string',description:'搜索结果里给的 ref，形如 1756...:12'},
+span:{type:'integer',description:'前后各几条，默认 5'}},required:['ref']}}}})();
+
+var _bsRA=buildStatic;
+buildStatic=function(){
+var s=_bsRA();
+if(!S.sets.tools)return s;
+var L=[];
+L.push('[搜到之后]');
+L.push('search 给的是片段。只看片段容易误会当时的意思。');
+L.push('要判断她当时什么心情、那句话前后发生了什么，用 read_around 把上下文拉出来。');
+L.push('read_around 末尾会给继续翻的 ref，可以一路读下去。');
+L.push('引用一句旧话之前，先确认前后文对得上。');
+return s+'\n\n'+L.join('\n')};
+
+/* ══════ 滚动优化 ══════ */
+
+/* 1. 锚点计算改成 rAF 节流，不再每次滚动强制重排 */
+var ANCHQ=0;
+function updAnchor(){
+if(ANCHQ)return;
+ANCHQ=1;
+requestAnimationFrame(function(){
+ANCHQ=0;
+var ca=document.getElementById('ca');
+if(!ca)return;
+if(ca.scrollHeight-ca.scrollTop-ca.clientHeight<40){ANCH=null;return}
+var st=ca.scrollTop,box=document.getElementById('msgs');
+if(!box)return;
+var els=box.children,lo=0,hi=els.length-1,mid,el,top;
+while(lo<hi){
+mid=(lo+hi)>>1;
+el=els[mid];
+top=el.offsetTop+el.offsetHeight;
+if(top>st){hi=mid}else{lo=mid+1}}
+el=els[lo];
+if(el){ANCH=el;ANCHOFF=el.offsetTop-st}
+else{ANCH=null}})}
+
+var DRIFTQ=0;
+function fixDrift(){
+if(DRIFTQ)return;
+DRIFTQ=1;
+requestAnimationFrame(function(){
+DRIFTQ=0;
+var ca=document.getElementById('ca');
+if(!ca)return;
+if(ANCH&&!ANCH.isConnected){ANCH=null;return}
+if(!ANCH)return;
+if(ca.scrollHeight-ca.scrollTop-ca.clientHeight<40)return;
+var d=(ANCH.offsetTop-ca.scrollTop)-ANCHOFF;
+if(Math.abs(d)>1)ca.scrollBy(0,d)})}
+
+/* 2. 防拖：touchstart 判定一次，touchmove 只读缓存 */
+(function(){
+var can=false;
+function scrollable(t){
+var n=t;
+while(n&&n!==document.body&&n.nodeType===1){
+if(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName))return true;
+var cs;
+try{cs=getComputedStyle(n)}catch(e){return true}
+if((n.scrollHeight>n.clientHeight+1&&/(auto|scroll)/.test(cs.overflowY))||
+(n.scrollWidth>n.clientWidth+1&&/(auto|scroll)/.test(cs.overflowX)))return true;
+n=n.parentElement}
+return false}
+document.addEventListener('touchstart',function(e){
+if(!S.sets.noDrag){can=true;return}
+if(e.touches&&e.touches.length>1){can=true;return}
+can=scrollable(e.target)},{passive:true,capture:true});
+document.addEventListener('touchmove',function(e){
+if(!S.sets.noDrag)return;
+if(can)return;
+if(e.touches&&e.touches.length>1)return;
+e.preventDefault()},{passive:false})})();
+
+/* 3. ResizeObserver 批量处理，一帧只 fixDrift 一次 */
+function initHOB(){
+if(typeof ResizeObserver==='undefined')return;
+HOB=new ResizeObserver(function(es){
+var i,e,el,h;
+for(i=0;i<es.length;i++){
+e=es[i];el=e.target;
+h=Math.round((e.borderBoxSize&&e.borderBoxSize[0]?e.borderBoxSize[0].blockSize:0)||el.offsetHeight);
+if(h>0)el.style.containIntrinsicSize='auto '+h+'px'}
+fixDrift()})}
+
+/* 4. 壳子高度按文字量估，减少滚动条跳动 */
+function mkShell(m,idx){
+if(m.role==='sys'){
+var s=document.createElement('div');
+s.className='sysline';
+s.dataset.i=idx;
+s.textContent=m.text;
+return s}
+var d=document.createElement('div');
+d.className='msg msg-lazy '+(m.role==='user'?'u':'a')+(m.pin?' pinned':'');
+d.dataset.i=idx;
+var tl=String(m.text||'').length;
+var est=46+Math.min(560,Math.ceil(tl/26)*22);
+if(m.ik&&m.ik.length)est+=(m.ik.length===1?210:112);
+if(m.thinking)est+=34;
+d.style.containIntrinsicSize='auto '+est+'px';
+var h='';
+if(m.ik&&m.ik.length)h+='<div class="shell-img">['+m.ik.length+' 张图]</div>';
+else if(m.imgGone)h+='<div class="shell-img">[图片已清理]</div>';
+var pv=String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' ').slice(0,100);
+if(!pv&&m.err)pv='[出错了]';
+if(!pv&&m.ik)pv='[图片]';
+h+='<div class="shell-pv">'+esc(pv||'…')+'</div>';
+d.innerHTML=h;
+if(HYDRATOR)HYDRATOR.observe(d);
+return d}
+
+/* 5. 水合排队：一帧最多两条，且不再反复改 contentVisibility */
+var HYQ=[],HYRUN=0;
+function hyDrain(){
+if(HYRUN)return;
+HYRUN=1;
+requestAnimationFrame(function(){
+HYRUN=0;
+var cv=S.convs[S.cur],n=0;
+while(HYQ.length&&n<2){
+var el=HYQ.shift();
+if(!el||!el.isConnected)continue;
+var idx=parseInt(el.dataset.i);
+if(!cv||!cv.msgs||!cv.msgs[idx])continue;
+var full=mkDOM(cv.msgs[idx],idx,cv);
+if(!full)continue;
+var hOld=el.offsetHeight;
+if(hOld>0)full.style.containIntrinsicSize='auto '+hOld+'px';
+if(ANCH===el)ANCH=full;
+el.replaceWith(full);
+if(HOB){try{HOB.observe(full)}catch(x){}}
+if(IMGOBS)lazyImgsIn(full);
+n++}
+if(HYQ.length)hyDrain()})}
+
+function initHydrator(){
+if(HYDRATOR)return;
+HYDRATOR=new IntersectionObserver(function(entries){
+var i,e;
+for(i=0;i<entries.length;i++){
+e=entries[i];
+if(!e.isIntersecting)continue;
+HYDRATOR.unobserve(e.target);
+HYQ.push(e.target)}
+if(HYQ.length)hyDrain()},{rootMargin:'900px 0px'})}
+
+/* 6. 跳转时先水合目标，不靠 contentVisibility 硬撑 */
+function jumpMsg(cid,idx){
+if(S.convs[cid]&&S.convs[cid].cold){
+toast('正在取回…');
+warmOne(cid).then(function(ok){if(ok){renderCL();jumpMsg(cid,idx)}});
+return}
+if(S.cur!==cid)switchC(cid,true);
+go('chat');
+if(PINSTOP)PINSTOP();
+setTimeout(function(){
+var el=document.querySelector('#msgs [data-i="'+idx+'"]');
+if(!el)return;
+if(el.classList.contains('msg-lazy')){
+var cv=S.convs[S.cur];
+if(cv&&cv.msgs&&cv.msgs[idx]){
+if(HYDRATOR){try{HYDRATOR.unobserve(el)}catch(x){}}
+var full=mkDOM(cv.msgs[idx],idx,cv);
+if(full){
+el.replaceWith(full);
+if(HOB){try{HOB.observe(full)}catch(x){}}
+eagerImgsIn(full);
+el=full}}}
+el.scrollIntoView({block:'center'});
+el.classList.add('jump');
+setTimeout(function(){el.classList.remove('jump')},1800)},300)}
+
+/* 7. 关掉滚动时的 contain 抖动 + 减少重绘 */
+(function(){
+var st=document.createElement('style');
+st.textContent=
+'#ca{will-change:scroll-position;transform:translateZ(0)}'+
+'#msgs{contain:layout style}'+
+'.msg{transition:none}'+
+'.msg.jump{transition:background .4s}'+
+'.bub{contain:content}'+
+'.msg-lazy .shell-pv{contain:strict;height:34px}';
+document.head.appendChild(st)})();
+
+/* 8. 重新挂一次 scroll 监听，去掉旧的直接调用 */
+setTimeout(function(){
+var ca=document.getElementById('ca');
+if(!ca||ca._v183)return;
+ca._v183=1;
+var tb=document.getElementById('toBot'),q=0;
+ca.addEventListener('scroll',function(){
+if(q)return;
+q=1;
+requestAnimationFrame(function(){
+q=0;
+if(tb)tb.classList.toggle('show',
+ca.scrollHeight-ca.scrollTop-ca.clientHeight>320);
+updAnchor()})},{passive:true});
+initHOB();
+if(HYDRATOR){try{HYDRATOR.disconnect()}catch(e){}HYDRATOR=null}
+initHydrator();
+renderMs()},900);
 </script>
 </body>
 </html>
