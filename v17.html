@@ -3619,6 +3619,305 @@ setTimeout(function(){
 var n=stripTips();
 try{localStorage.setItem('fw_tipclean','1')}catch(e){}
 if(n)toast('清掉了 '+n+' 条写进历史的工具提示')},1500)}
+  
+/* ═══════════ v18.1：工具补全 + 校验 ═══════════ */
+var TOOLLOG=[];
+try{TOOLLOG=JSON.parse(localStorage.getItem('fw_tlog')||'[]')}catch(e){TOOLLOG=[]}
+
+function logTool(n,i,r){
+TOOLLOG.push({t:Date.now(),n:n,i:JSON.stringify(i||{}).slice(0,160),r:String(r).slice(0,180)});
+if(TOOLLOG.length>40)TOOLLOG=TOOLLOG.slice(-40);
+try{localStorage.setItem('fw_tlog',JSON.stringify(TOOLLOG))}catch(e){}}
+
+function showToolLog(){
+if(!TOOLLOG.length){toast('还没有记录。\n让他用一次工具再看。');return}
+var L=[],i,x,n=0;
+for(i=TOOLLOG.length-1;i>=0&&n<12;i--,n++){
+x=TOOLLOG[i];
+L.push(fmtTs(x.t)+'　'+x.n);
+L.push('入 '+x.i);
+L.push('出 '+x.r);
+L.push('')}
+ask(L.join('\n'),function(){})}
+
+/* ── 集合查找 ── */
+function collOf(k){
+if(k==='M')return S.mems;
+if(k==='D')return S.diary;
+if(k==='L')return S.timeline;
+if(k==='T')return S.me.th;
+if(k==='A')return S.ai.th;
+return[]}
+
+function nearIds(k,n){
+var c=collOf(k),ids=[],i;
+for(i=0;i<c.length;i++)ids.push(c[i].n);
+if(!ids.length)return'（这个模块现在是空的）';
+ids.sort(function(a,b){return Math.abs(a-n)-Math.abs(b-n)});
+ids=ids.slice(0,5).sort(function(a,b){return a-b});
+return ids.map(function(x){return k+x}).join(' ')}
+
+function cntM(){return S.mems.filter(function(m){return !m.arch}).length}
+
+/* ── 新工具 ── */
+TOOLS.push({name:'delete_thought',description:'删掉你自己念头流里的一条。id 用 A 开头的编号。她的念头（T）你动不了，那是她的地方。',
+input_schema:{type:'object',properties:{id:{type:'string',description:'A 开头，比如 A7'}},required:['id']}});
+
+TOOLS.push({name:'edit_thought',description:'改写你自己的某条念头。id 用 A 编号。',
+input_schema:{type:'object',properties:{id:{type:'string'},content:{type:'string'}},required:['id','content']}});
+
+TOOLS.push({name:'delete_comment',description:'删掉你自己在某篇日记下写的评论。只能删你自己写的。',
+input_schema:{type:'object',properties:{diary_id:{type:'string',description:'D 编号'},match:{type:'string',description:'那条评论里的一小段原文，用来定位'}},required:['diary_id','match']}});
+
+TOOLS.push({name:'list_memories',description:'列出记忆。想看抽屉里有什么、想按标签翻、想知道总共多少条的时候用。不是搜索——搜索用 search。',
+input_schema:{type:'object',properties:{tag:{type:'string',description:'只看这个标签的，可空'},archived:{type:'boolean',description:'true=只看抽屉里的，false/省略=只看常驻的'},limit:{type:'integer'}},required:[]}});
+
+TOOLS.push({name:'restore_self',description:'把自我描述恢复到上一个版本。改坏了、改得不像自己了，用这个退回去。',
+input_schema:{type:'object',properties:{},required:[]}});
+
+NEEDP.delete_thought='A';
+NEEDP.edit_thought='A';
+NEEDP.delete_comment='D';
+
+var SCOPEFIX={memories:'memory',mem:'memory',记忆:'memory',
+diaries:'diary',diarys:'diary',日记:'diary',
+thoughts:'thought',念头:'thought',
+conversation:'chat',conversations:'chat',对话:'chat',chats:'chat',
+timelines:'timeline',时间线:'timeline'};
+var SCOPEOK={chat:1,diary:1,memory:1,thought:1,timeline:1};
+
+/* ── 主拦截 ── */
+var _etQ=execTool;
+execTool=function(n,i){
+var r,g,x;
+i=i||{};
+
+/* 念头：自己的能删能改，她的不行 */
+if(n==='delete_thought'||n==='edit_thought'){
+g=splitId(i.id);
+if(!g||isNaN(g.n))r='失败：没给编号。你自己的念头是 A 开头的。';
+else if(g.p==='T')r='❌ T'+g.n+' 是她的念头。你删不了改不了——那是她的地方，只有她能在界面上动。你能做的是 reply_thought 回一句。';
+else if(g.p&&g.p!=='A')r='❌ '+g.p+g.n+' 不是念头。你自己的念头是 A 开头的。';
+else{
+x=byN(S.ai.th,g.n);
+if(x<0)r='失败：没有 A'+g.n+'。你的念头一共 '+S.ai.th.length+' 条，附近的编号：'+nearIds('A',g.n);
+else if(n==='delete_thought'){
+var was=String(S.ai.th[x].content||'').slice(0,40);
+S.ai.th.splice(x,1);saveNow();rUs();
+r=(byN(S.ai.th,g.n)>=0)?'⚠️ 删除没生效，A'+g.n+' 还在。告诉她这条没删掉。'
+:'已删除 A'+g.n+'「'+was+'」　还剩 '+S.ai.th.length+' 条'}
+else if(!String(i.content||'').trim())r='失败：没给新内容';
+else{
+S.ai.th[x].content=i.content;
+S.ai.th[x].editedTs=Date.now();
+saveNow();rUs();
+r='已改写 A'+g.n}}
+logTool(n,i,r);return r}
+
+/* 删自己的评论 */
+if(n==='delete_comment'){
+g=splitId(i.diary_id);
+if(!g||isNaN(g.n))r='失败：没给日记编号';
+else{
+x=byN(S.diary,g.n);
+if(x<0)r='失败：没有 D'+g.n+'。附近的：'+nearIds('D',g.n);
+else{
+var cs=S.diary[x].comments||[],mt=String(i.match||'').trim(),hit=-1,k;
+if(!mt)r='失败：要给一小段那条评论的原文，用来定位';
+else{
+for(k=cs.length-1;k>=0;k--){
+if(cs[k].author==='ai'&&String(cs[k].content||'').indexOf(mt)>=0){hit=k;break}}
+if(hit<0){
+var mine=0;
+for(k=0;k<cs.length;k++)if(cs[k].author==='ai')mine++;
+r='失败：D'+g.n+' 下面你写的 '+mine+' 条评论里，没有包含「'+mt+'」的。'+
+(mine?'先 read_diary(D'+g.n+') 看一眼原文。':'这篇你还没评论过。')}
+else{
+var cw=String(cs[hit].content||'').slice(0,30);
+cs.splice(hit,1);saveNow();rDiary();
+r='已删除你在 D'+g.n+' 下的评论「'+cw+'」'}}}}
+logTool(n,i,r);return r}
+
+/* 列记忆 */
+if(n==='list_memories'){
+var tag=String(i.tag||'').trim(),arch=(i.archived===true);
+var lim=parseInt(i.limit);if(isNaN(lim)||lim<1)lim=40;if(lim>120)lim=120;
+var fl=[],mm;
+for(x=0;x<S.mems.length;x++){
+mm=S.mems[x];
+if(!!mm.arch!==arch)continue;
+if(tag&&String(mm.tag||'')!==tag)continue;
+fl.push(mm)}
+var tags={},allT=[];
+for(x=0;x<S.mems.length;x++){if(S.mems[x].tag)tags[S.mems[x].tag]=(tags[S.mems[x].tag]||0)+1}
+for(var kk in tags)allT.push(kk+'('+tags[kk]+')');
+if(!fl.length){
+r='没有符合的。\n常驻 '+cntM()+' 条，抽屉 '+(S.mems.length-cntM())+' 条。'+
+(allT.length?'\n现有标签：'+allT.join(' '):'')}
+else{
+var o=(arch?'抽屉里':'常驻')+(tag?('｜标签「'+tag+'」'):'')+' 共 '+fl.length+' 条';
+if(fl.length>lim)o+='，列最近 '+lim+' 条';
+o+='：\n\n';
+fl.slice(-lim).reverse().forEach(function(m){
+o+='M'+m.n+(m.tag?'　['+m.tag+']':'')+(m.sure==='inferred'?'　(推断)':'')+
+(m.locked?'　(锁定)':'')+'\n'+String(m.content||'')+'\n\n'});
+o+='———\n常驻 '+cntM()+' 条，抽屉 '+(S.mems.length-cntM())+' 条。';
+if(allT.length)o+='\n所有标签：'+allT.join(' ');
+r=o}
+logTool(n,i,r);return r}
+
+/* 恢复自我描述 */
+if(n==='restore_self'){
+if(!S.ai.descPrev)r='失败：没有上一个版本。你还没改过自我描述，或者这是第一次写。';
+else{
+var cur=S.ai.desc;
+S.ai.desc=S.ai.descPrev;
+S.ai.descPrev=cur;
+saveNow();rUs();
+r='已退回上一版：\n'+String(S.ai.desc||'').slice(0,200)+'\n\n（再调一次 restore_self 可以撤销这次退回）'}
+logTool(n,i,r);return r}
+
+/* 清空此刻 */
+if(n==='update_now'&&!String(i.content||'').trim()){
+S.ai.now='';S.ai.nowTs=0;saveNow();rUs();
+r='已清空此刻';
+logTool(n,i,r);return r}
+
+/* 自我描述留一份旧版 */
+if(n==='update_self'&&String(i.content||'').trim()){
+if(S.ai.desc&&S.ai.desc!==i.content)S.ai.descPrev=S.ai.desc}
+
+/* search 的 scope 纠错 */
+if(n==='search'&&i.scope){
+var sc=String(i.scope).trim().toLowerCase();
+if(SCOPEFIX[sc])sc=SCOPEFIX[sc];
+if(!SCOPEOK[sc]){
+r='失败：scope 只认 chat / diary / memory / thought / timeline 这五个，'+
+'你写的是「'+i.scope+'」。不确定就别填 scope，默认全搜。';
+logTool(n,i,r);return r}
+i.scope=sc}
+
+/* 时间线查重 */
+if(n==='add_milestone'&&i.what){
+var bi=-1,bs=0;
+for(x=0;x<S.timeline.length;x++){
+var s2=sim2(S.timeline[x].what,i.what);
+if(s2>0.7&&s2>bs){bs=s2;bi=x}}
+if(bi>=0){
+r='⚠️ 没有添加。和 L'+S.timeline[bi].n+' 有 '+Math.round(bs*100)+'% 重合：\n'+
+'「'+S.timeline[bi].when+'｜'+S.timeline[bi].what+'」\n\n'+
+'真是同一件事就用 edit_milestone 补充，是两件事就把描述写得更具体。';
+logTool(n,i,r);return r}}
+
+/* 念头查重：只拦 24 小时内的 */
+if(n==='write_thought'&&i.content){
+var now=Date.now();
+for(x=S.ai.th.length-1;x>=0;x--){
+if(now-(S.ai.th[x].ts||0)>DAY)break;
+if(sim2(S.ai.th[x].content,i.content)>0.75){
+r='⚠️ 没有写入。A'+S.ai.th[x].n+' 是今天写的，内容几乎一样：\n'+
+'「'+String(S.ai.th[x].content).slice(0,60)+'」\n\n'+
+'真有新东西就换个说法，只是重复就不用再写一遍。';
+logTool(n,i,r);return r}}}
+
+/* sure 参数校验 */
+if(n==='create_memory'&&i.sure!==undefined){
+var sv=String(i.sure).trim().toLowerCase();
+if(sv!=='confirmed'&&sv!=='inferred'){
+r='失败：sure 只能填 confirmed（她说过）或 inferred（你推断的），你写的是「'+i.sure+'」。'+
+'\n这个区分很重要，别蒙。';
+logTool(n,i,r);return r}
+i.sure=sv}
+
+/* read_conversation 撞名提示 */
+if(n==='read_conversation'&&i.title){
+var q2=String(i.title).toLowerCase(),hits=[];
+Object.keys(S.convs).forEach(function(id){
+var c=S.convs[id];
+if(c&&String(c.title||'').toLowerCase().indexOf(q2)>=0)hits.push(c.title||'对话')});
+if(hits.length>1){
+r='⚠️ 有 '+hits.length+' 个对话标题都含「'+i.title+'」：\n'+
+hits.map(function(t){return '· '+t}).join('\n')+
+'\n\n换个更精确的标题，或者直接用 search 搜内容。';
+logTool(n,i,r);return r}}
+
+/* 删除前留底 */
+var pre='',before=-1;
+if(n==='delete_memory'){
+g=splitId(i.id);
+if(g&&!isNaN(g.n)){
+x=byN(S.mems,g.n);
+if(x>=0){pre='「'+String(S.mems[x].content||'').slice(0,40)+'」';before=g.n}}}
+
+/* 存在性预检 */
+var need=NEEDP[n];
+if(need&&n!=='add_comment'){
+g=splitId(i.id);
+if(g&&!isNaN(g.n)&&(!g.p||g.p===need)){
+if(byN(collOf(need),g.n)<0){
+r='失败：没有 '+need+g.n+'（'+MODN[need]+'）。附近的编号：'+nearIds(need,g.n)+
+'\n\n拿不准就先 search 一次，结果里带正确编号。';
+logTool(n,i,r);return r}}}
+
+r=_etQ(n,i);
+
+/* 结果加尾注 + 落盘校验 */
+if(typeof r==='string'){
+if(n==='delete_memory'&&before>=0&&r.indexOf('已删除')>=0){
+if(byN(S.mems,before)>=0){r='⚠️ 返回成功但记忆还在，删除没生效。别跟她说删掉了。'}
+else{saveNow();r+=' '+pre+'　常驻记忆还剩 '+cntM()+' 条'}}
+else if(n==='create_memory'&&r.indexOf('已记')>=0){saveNow();r+='　常驻共 '+cntM()+' 条'}
+else if(n==='delete_diary'&&r.indexOf('已删除')>=0){saveNow();r+='　日记还剩 '+S.diary.length+' 篇'}
+else if(n==='create_diary'&&r.indexOf('已发布')>=0){saveNow();r+='　日记共 '+S.diary.length+' 篇'}
+else if(n==='delete_milestone'&&r.indexOf('已删除')>=0){saveNow();r+='　时间线还剩 '+S.timeline.length+' 个节点'}
+else if(n==='add_milestone'&&r.indexOf('已记下')>=0){saveNow();r+='　时间线共 '+S.timeline.length+' 个节点'}
+else if(n==='archive_memory'&&r.indexOf('已收进')>=0){saveNow();r+='　常驻剩 '+cntM()+' 条'}
+else if(n==='unarchive_memory'&&r.indexOf('已放回')>=0){saveNow();r+='　常驻共 '+cntM()+' 条'}
+else if(n==='write_thought'&&r.indexOf('已写下')>=0){saveNow();r='已写下 A'+S.seq.ath+'　你的念头共 '+S.ai.th.length+' 条'}
+else if(r.indexOf('已')===0){saveNow()}}
+
+logTool(n,i,r);
+return r};
+
+/* ── 提示词 ── */
+var _bsQ=buildStatic;
+buildStatic=function(){
+var s=_bsQ();
+if(!S.sets.tools)return s;
+var L=[];
+L.push('[念头是谁的]');
+L.push('A = 你自己的念头。delete_thought / edit_thought 可以删改。');
+L.push('T = 她的念头。你只能 reply_thought 回一句，删不了改不了。');
+L.push('她要删自己的念头，让她去「我们」页面点「删」——你没这个权限，别答应。');
+L.push('');
+L.push('[日记权限]');
+L.push('edit_diary / delete_diary 对她写的日记也有效，改她的会留下痕迹。这个权限是她给的，别滥用。');
+L.push('评论只能删你自己写的。');
+L.push('');
+L.push('[删完要核对]');
+L.push('删除类工具会告诉你剩下多少条。');
+L.push('看到「⚠️ 没生效」就是真没删掉——直接告诉她，别当成功了。');
+L.push('');
+L.push('[改自己之前]');
+L.push('update_self 会覆盖整段自我描述。改坏了用 restore_self 退回上一版。');
+L.push('update_now 传空内容 = 清空此刻。');
+L.push('');
+L.push('[想翻记忆库]');
+L.push('list_memories 列出来看——能按标签筛，能看抽屉里的，会告诉你总共多少条。');
+L.push('找特定内容还是用 search。');
+return s+'\n\n'+L.join('\n')};
+
+/* ── 菜单入口 ── */
+var _ocmQ=openConvMenu;
+openConvMenu=function(){
+_ocmQ();
+var sheet=document.getElementById('amSheet');
+if(!sheet)return;
+var b=document.createElement('button');
+b.className='ami';
+b.textContent='他动过什么（工具记录）';
+b.onclick=function(){closeAm();showToolLog()};
+sheet.insertBefore(b,sheet.lastElementChild)};
 </script>
 </body>
 </html>
