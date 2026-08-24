@@ -4438,6 +4438,343 @@ setTimeout(function(){
 var n=stripTips();
 try{localStorage.setItem('fw_tipclean','1')}catch(e){}
 if(n)toast('清掉了 '+n+' 条写进历史的工具提示')},1500)}
+  
+/* ═══════════ v18.6：搜索 + 主题 + 布局收敛 ═══════════ */
+
+/* ── 1. 本地搜索改用结果列表，不再动消息 DOM ── */
+function doSearch(){
+var q=document.getElementById('sinp').value.trim();
+var gr=document.getElementById('gres'),ca=document.getElementById('ca');
+if(!q){clearSearch();return}
+var Q=qSplit(q);
+if(!Q){clearSearch();return}
+ca.classList.remove('searching');
+var rs,i,r,h='',jump;
+if(S.globalSearch){
+rs=doSearchAll(q,80)}
+else{
+rs=[];
+var cv=S.convs[S.cur];
+if(cv&&cv.msgs){
+var an=S.sets.aiName||'Renn',un=S.sets.userName||'小u';
+cv.msgs.forEach(function(m,mi){
+if(m.role==='sys'||m.err)return;
+if(!dateOK(m.ts,Q.ds))return;
+var hit=scoreHit(String(m.text||''),Q);
+if(!hit)return;
+var hd=fmtFull(m.ts)+'｜'+((m.role==='user')?un:an);
+if(m.pin)hd+='｜📌';
+if(m.ik&&m.ik.length)hd+='｜'+m.ik.length+' 张图';
+rs.push({kind:'',head:hd,body:String(m.text||''),ts:m.ts||0,
+at:hit.at,marks:hit.marks,loc:{cid:S.cur,i:mi}})});
+rs.sort(function(a,b){return b.ts-a.ts})}}
+document.getElementById('scnt').textContent=rs.length+'条';
+if(!rs.length){
+gr.innerHTML='<div class="hint-empty">没找到<br><br>多个词用空格隔开<br>日期写 3.15 或 3月15日</div>'}
+else{
+for(i=0;i<rs.length;i++){
+r=rs[i];
+if(r.loc){jump='onclick="jumpMsg(\''+r.loc.cid+'\','+r.loc.i+')"'}
+else if(r.kind==='记忆'){jump='onclick="go(\'set\');openSub(\'subMem\')"'}
+else{jump='onclick="go(\'diary\')"'}
+h+='<div class="gr" '+jump+'><div class="gr-m">'+
+(r.kind?(esc(r.kind)+' · '):'')+esc(r.head)+
+'</div><div class="gr-t">'+hlRes(r)+'</div></div>'}
+gr.innerHTML=h}
+gr.classList.add('show')}
+
+function clearSearch(){
+var si=document.getElementById('sinp');
+if(si)si.value='';
+var sc=document.getElementById('scnt');
+if(sc)sc.textContent='';
+var gr=document.getElementById('gres');
+if(gr){gr.classList.remove('show');gr.innerHTML=''}
+var ca=document.getElementById('ca');
+if(ca)ca.classList.remove('searching')}
+
+function toggleSearch(){
+var b=document.getElementById('sbar');
+if(b.classList.contains('show')){
+b.classList.remove('show');
+clearSearch();
+S.globalSearch=false;
+document.getElementById('sgAll').classList.remove('on');
+document.getElementById('sinp').placeholder='搜这个对话…'}
+else{
+b.classList.add('show');
+document.getElementById('sinp').placeholder=S.globalSearch?'搜全库…':'搜这个对话…';
+setTimeout(function(){document.getElementById('sinp').focus()},60)}}
+
+function toggleGlobal(){
+S.globalSearch=!S.globalSearch;
+document.getElementById('sgAll').classList.toggle('on',S.globalSearch);
+document.getElementById('sinp').placeholder=S.globalSearch?'搜全库…':'搜这个对话…';
+doSearch()}
+
+/* ── 2. 主题切换：去掉常驻合成层，切换时临时静音 ── */
+(function(){
+var st=document.createElement('style');
+st.textContent=
+'#ca{will-change:auto}'+
+'html.thsw *{transition:none!important;animation:none!important}';
+document.head.appendChild(st)})();
+
+function toggleTh(){
+var el=document.documentElement;
+var n=(el.getAttribute('data-theme')==='dark')?'light':'dark';
+el.classList.add('thsw');
+el.setAttribute('data-theme',n);
+try{localStorage.setItem('fw_th',n)}catch(e){}
+syncTh(n);
+setTimeout(function(){el.classList.remove('thsw')},280)}
+
+/* ── 3. 防拖判定跳过按钮和输入 ── */
+(function(){
+var can=false;
+function scrollable(t){
+var n=t,d=0;
+while(n&&n!==document.body&&n.nodeType===1&&d<14){
+var tg=n.tagName;
+if(tg==='BUTTON'||tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT'||tg==='A')return true;
+if(n.id==='ca'||n.id==='gres'||n.id==='sidebar')return true;
+if(n.classList&&(n.classList.contains('body-scroll')||
+n.classList.contains('sb-list')||n.classList.contains('amsheet')||
+n.classList.contains('mdl')||n.classList.contains('thk-bd')))return true;
+n=n.parentElement;d++}
+return false}
+document.removeEventListener('touchstart',window.__fwTS,true);
+window.__fwTS=function(e){
+if(!S.sets.noDrag){can=true;return}
+if(e.touches&&e.touches.length>1){can=true;return}
+can=scrollable(e.target)};
+document.addEventListener('touchstart',window.__fwTS,{passive:true,capture:true})})();
+
+/* ── 4. 节点回「我们」页，日记页只留日记和碎碎念 ── */
+function diaStream(){
+var out=[],i,t;
+for(i=0;i<S.diary.length;i++){out.push({k:'d',ts:S.diary[i].ts||0,o:S.diary[i]})}
+for(i=0;i<S.me.th.length;i++){t=S.me.th[i];out.push({k:'n',mine:true,ts:t.ts||0,o:t})}
+for(i=0;i<S.ai.th.length;i++){t=S.ai.th[i];out.push({k:'n',mine:false,ts:t.ts||0,o:t})}
+out.sort(function(a,b){return b.ts-a.ts});
+return out}
+
+function setDFilter(f){
+if(f!=='all'&&f!=='d'&&f!=='n')f='all';
+S.dFilter=f;
+rDiary()}
+if(S.dFilter==='t')S.dFilter='all';
+
+var _rdBase=rDiary;
+rDiary=function(){
+_rdBase();
+var l=document.getElementById('dl');
+if(!l)return;
+var seg=l.querySelector('.dseg');
+if(!seg)return;
+var bs=seg.children;
+if(bs.length>3&&bs[3])seg.removeChild(bs[3]);
+var add=l.querySelector('.dadd');
+if(add&&add.parentNode===l)l.removeChild(add)};
+
+/* 「我们」页恢复完整时间线 */
+function rTimeline(){
+var b=document.getElementById('tlBody');
+if(!b)return;
+b.innerHTML='';
+if(!S.timeline.length){
+b.innerHTML='<div class="hint-empty" style="padding:26px">还没有节点<br><br>'+
+'你们走到今天经过的地方<br>他也会自己往上记</div>';
+return}
+var frag=document.createDocumentFragment();
+S.timeline.forEach(function(t){
+var d=document.createElement('div');
+d.className='tli';
+var h='<div class="tli-w">'+esc(t.when)+'　<span class="mc-id">L'+t.n+'</span>'+
+((t.by==='ai')?'　· 他记的':'')+'</div><div class="tli-b">'+esc(t.what)+
+'</div><div class="tli-f">';
+if(t.ref)h+='<button onclick="jumpMsg(\''+t.ref.cid+'\','+t.ref.i+')">回到那里</button>';
+h+='<button onclick="editMile('+t.n+')">改</button>'+
+'<button onclick="delMile('+t.n+')">删</button></div>';
+d.innerHTML=h;
+frag.appendChild(d)});
+b.appendChild(frag)}
+
+/* ── 5. 「我们」页彻底删掉念头两块 ── */
+function rThList(){}
+
+function killThBlocks(){
+['aiTh','meTh'].forEach(function(id){
+var box=document.getElementById(id);
+if(!box)return;
+var blk=box.parentElement;
+while(blk&&!(blk.className&&blk.className.indexOf('blk')===0))blk=blk.parentElement;
+if(blk&&blk.parentNode)blk.parentNode.removeChild(blk);
+else{box.innerHTML='';box.style.display='none'}})}
+
+function addDiaryEntry(){
+['pg-ai','pg-me'].forEach(function(pid){
+var pg=document.getElementById(pid);
+if(!pg||pg.querySelector('.dgo'))return;
+var mine=(pid==='pg-me');
+var d=document.createElement('div');
+d.className='blk dgo';
+d.innerHTML='<div class="blk-h"><span class="blk-t">碎碎念</span></div>'+
+'<div class="hint-empty" style="padding:16px;font-size:13px;background:var(--card);'+
+'border:1px solid var(--bd);border-radius:14px">'+
+(mine?'你的':'他的')+'碎碎念在日记页<br><br>'+
+'<button class="new-btn" style="width:auto;padding:8px 20px" '+
+'onclick="go(\'diary\');setDFilter(\'n\')">去看</button></div>';
+pg.appendChild(d)})}
+
+var _rusV6=rUs;
+rUs=function(){
+_rusV6();
+killThBlocks();
+addDiaryEntry()};
+
+setTimeout(function(){
+var e=document.getElementById('sinp');
+if(e)e.placeholder='搜这个对话…';
+killThBlocks();addDiaryEntry();
+rUs();rDiary()},400);
+
+/* ═══════════ v18.7：描述更正 + 补漏 ═══════════ */
+
+/* ── 1. 提示词：日记页三段流，节点在「我们」 ── */
+var _bsV7=buildStatic;
+buildStatic=function(){
+if(!S.sets.tools)return String(S.sets.sys||'');
+var s=_bsV7();
+s=s.replace(
+'[日记页 = 一条流]\n日记、碎碎念、时间线节点都在同一条流里按时间排。\n日记是想说完整一件事，碎碎念是随手一句。轻重不同，地方是一个。',
+'[日记页]\n日记（D）和碎碎念（T 她的 / A 你的）在同一条流里按时间排。\n'+
+'日记是想说完整一件事，碎碎念是随手一句。轻重不同，地方是一个。\n'+
+'时间线（L）和钉住的话在「我们」页，那是索引区，不混在流里。');
+s=s.replace(
+'T 是她的，你只能 reply_thought 回一句——删不了改不了，让她自己在日记页点「删」。',
+'T 是她的，你只能 reply_thought 回一句——删不了改不了，让她自己在日记页点「删」。\n'+
+'她的自我描述和此刻也只能读，没有任何工具能改。');
+return s};
+
+/* ── 2. 冷存对话的图能取回来了 ── */
+function allImgs(){
+var out=[],un=S.sets.userName||'小u',an=S.sets.aiName||'Renn';
+Object.keys(S.convs).forEach(function(cid){
+var c=S.convs[cid];
+if(!c||!c.msgs)return;
+c.msgs.forEach(function(m,mi){
+if(!m.ik||!m.ik.length)return;
+m.ik.forEach(function(k){
+out.push({k:k,ts:m.ts||0,
+where:'对话「'+(c.title||'对话')+'」'+(c.cold?'（冷存）':''),
+who:((m.role==='user')?un:an),
+text:String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' '),
+cid:cid,mi:mi})})})});
+S.diary.forEach(function(d){
+if(!d.ik||!d.ik.length)return;
+d.ik.forEach(function(k){
+out.push({k:k,ts:d.ts||0,where:'日记 D'+d.n,
+who:((d.author==='user')?un:an),
+text:String(d.content||'').replace(/\s+/g,' ')})})});
+out.sort(function(a,b){return b.ts-a.ts});
+return out}
+
+/* ── 3. 编辑器改自我描述时也留旧版 ── */
+var _suV7=saveUs;
+saveUs=function(){
+if(S.umMode==='desc'){
+var v=document.getElementById('umi').value.trim();
+if(S.me.desc&&S.me.desc!==v)S.me.descPrev=S.me.desc}
+_suV7()};
+
+/* ── 4. 记忆库上限不再砍掉锁定的 ── */
+function buildMems(){
+if(!S.sets.incMem)return'';
+var live=[],ar=0,i,m;
+for(i=0;i<S.mems.length;i++){
+if(S.mems[i].arch){ar++}else{live.push(S.mems[i])}}
+if(!live.length)return'';
+var cap=parseInt(S.sets.maxMem);
+if(!isNaN(cap)&&cap>0&&live.length>cap){
+var keep=[],rest=[];
+for(i=0;i<live.length;i++){
+if(live[i].locked){keep.push(live[i])}else{rest.push(live[i])}}
+var room=Math.max(0,cap-keep.length);
+live=keep.concat(rest.slice(-room));
+live.sort(function(a,b){return (a.n||0)-(b.n||0)})}
+var groups={},plain=[],g;
+live.forEach(function(x){
+if(x.tag){if(!groups[x.tag])groups[x.tag]=[];groups[x.tag].push(x)}
+else{plain.push(x)}});
+function rec(x){
+return '  <record id="M'+x.n+'"'+(x.locked?' locked="true"':'')+
+((x.sure==='inferred')?' sure="inferred"':'')+'>'+x.content+'</record>\n'}
+var t='<memories>\n';
+for(g in groups){
+t+='<group tag="'+String(g).replace(/"/g,'')+'">\n';
+groups[g].forEach(function(x){t+=rec(x)});
+t+='</group>\n'}
+plain.forEach(function(x){t+=rec(x)});
+t+='</memories>';
+var inf=0;
+for(i=0;i<live.length;i++){if(live[i].sure==='inferred')inf++}
+var head='[记忆库]'+(ar?('（另有 '+ar+' 条在抽屉里，list_memories 能看）'):'')+'\n';
+if(inf)head+='⚠️ 标了 sure="inferred" 的 '+inf+' 条是你自己推断的，用之前先问一句。\n';
+return head+t}
+
+/* ── 5. 编号前缀不再二次替换 ── */
+var _bdV7=buildDynamic;
+buildDynamic=function(cv){
+var s=_bdV7(cv);
+s=s.replace(/id="MM(\d+)"/g,'id="M$1"');
+return s};
+
+/* ── 6. 时间线上限，防止越记越长 ── */
+var _bdV7b=buildDynamic;
+buildDynamic=function(cv){
+var s=_bdV7b(cv);
+if(!S.sets.useTl||S.timeline.length<=40)return s;
+var extra=S.timeline.length-40;
+s=s.replace('[时间线]\n<timeline>',
+'[时间线]（早期 '+extra+' 个节点没列出来，search 搜得到）\n<timeline>');
+var lines=s.split('\n'),out=[],inTl=false,cnt=0,i;
+for(i=0;i<lines.length;i++){
+if(lines[i].indexOf('<timeline>')>=0){inTl=true;out.push(lines[i]);continue}
+if(lines[i].indexOf('</timeline>')>=0){inTl=false;out.push(lines[i]);continue}
+if(inTl){
+cnt++;
+if(cnt<=extra)continue}
+out.push(lines[i])}
+return out.join('\n')};
+
+/* ── 7. 切换对话时清掉搜索状态 ── */
+var _scV7=switchC;
+switchC=async function(id,silent){
+var b=document.getElementById('sbar');
+if(b&&b.classList.contains('show')){
+b.classList.remove('show');
+clearSearch()}
+await _scV7(id,silent)};
+
+/* ── 8. 记忆卡片上限提示 ── */
+var _rmV7=rMems;
+rMems=function(){
+_rmV7();
+var cap=parseInt(S.sets.maxMem);
+if(isNaN(cap)||cap<=0)return;
+var live=cntM();
+if(live<=cap)return;
+var l=document.getElementById('ml');
+if(!l||l.querySelector('.capwarn'))return;
+var d=document.createElement('div');
+d.className='fnote capwarn';
+d.style.marginBottom='12px';
+d.innerHTML='常驻 <b>'+live+'</b> 条，但上下文上限是 <b>'+cap+
+'</b>——较早的不进上下文（锁定的例外）。<br>去 设置 → 上下文 把上限改成 0 就是全带。';
+l.insertBefore(d,l.firstChild)};
+
+setTimeout(function(){pinDirty();rMems()},300);
 </script>
 </body>
 </html>
