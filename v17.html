@@ -3610,6 +3610,132 @@ if(a){
 a.setAttribute('onclick','openFixMenu()');
 a.innerHTML='<span class="lv">检查并修复</span><span class="rv" id="fixTag"></span><span class="cv">›</span>'}
 refreshSetList()},500);
+  
+/* ═══════════ v17.9：自建联网 ═══════════ */
+if(S.sets.jinaKey===undefined)S.sets.jinaKey='';
+
+var _btf9=buildToolsField;
+buildToolsField=function(){
+var t=_btf9();
+if(!t)t=[];
+var out=[],i;
+for(i=0;i<t.length;i++){
+if(t[i].type)continue;
+if(t[i].cache_control)delete t[i].cache_control;
+out.push(t[i])}
+if(S.sets.web){
+out.push({name:'web_lookup',description:'上网搜索。用于外部世界的信息：新闻、天气、某个东西是什么、查证一个说法。返回网页内容。这不是搜你们自己的记录——那个用 search。',input_schema:{type:'object',properties:{query:{type:'string',description:'搜索词，像在搜索引擎里输入那样'}},required:['query']}});
+out.push({name:'web_open',description:'打开一个具体网址，读它的正文',input_schema:{type:'object',properties:{url:{type:'string'}},required:['url']}})}
+if(!out.length)return null;
+if(S.sets.cache)out[out.length-1].cache_control={type:'ephemeral'};
+return out};
+
+async function webFetch(u,hdr,ms){
+var ac=new AbortController();
+var to=setTimeout(function(){try{ac.abort()}catch(e){}},ms||25000);
+try{
+var r=await fetch(u,{headers:hdr||{},signal:ac.signal});
+var txt=await r.text();
+clearTimeout(to);
+if(!r.ok)return{ok:false,t:'HTTP '+r.status+'　'+String(txt).slice(0,200)};
+return{ok:true,t:txt}}
+catch(e){
+clearTimeout(to);
+return{ok:false,t:String((e&&e.message)||e)}}}
+
+var _eta9=execToolAsync;
+execToolAsync=async function(n,i){
+if(n==='web_lookup'){
+var q=String((i&&i.query)||'').trim();
+if(!q)return'失败：没给搜索词';
+var h={'Accept':'text/plain','X-Respond-With':'no-content'};
+if(S.sets.jinaKey)h['Authorization']='Bearer '+S.sets.jinaKey;
+var r=await webFetch('https://s.jina.ai/'+encodeURIComponent(q),h);
+if(!r.ok)return'[网页] 搜索失败：'+r.t+'\n\n跟她说一句没搜到，不要编。';
+var t=String(r.t).replace(/\n{3,}/g,'\n\n');
+if(t.length>2600)t=t.slice(0,2600)+'\n…（后面截断了）';
+return'[网页] 搜「'+q+'」搜到：\n\n'+t+'\n\n———\n挑出真正有用的，用自己的话说。不要念结果。'}
+if(n==='web_open'){
+var u=String((i&&i.url)||'').trim();
+if(!u)return'失败：没给网址';
+if(u.indexOf('http')!==0)u='https://'+u;
+var h2={'Accept':'text/plain'};
+if(S.sets.jinaKey)h2['Authorization']='Bearer '+S.sets.jinaKey;
+var r2=await webFetch('https://r.jina.ai/'+u,h2);
+if(!r2.ok)return'[网页] 打不开：'+r2.t;
+var t2=String(r2.t).replace(/\n{3,}/g,'\n\n');
+if(t2.length>3200)t2=t2.slice(0,3200)+'\n…（后面截断了）';
+return'[网页] '+u+' 的正文：\n\n'+t2}
+return _eta9(n,i)};
+
+var _tl9=toolLabel;
+toolLabel=function(n){
+if(n==='web_lookup')return'上网搜了搜';
+if(n==='web_open')return'打开了一个网页';
+return _tl9(n)};
+
+var _bam9=buildApiMs;
+buildApiMs=function(cv){
+var out=_bam9(cv);
+var stop=Math.max(0,out.length-3),i,j,m,b;
+for(i=0;i<stop;i++){
+m=out[i];
+if(m.role!=='user'||!Array.isArray(m.content))continue;
+if(!m.content[0]||m.content[0].type!=='tool_result')continue;
+var ch=false,nc=[];
+for(j=0;j<m.content.length;j++){
+b=m.content[j];
+if(b.type==='tool_result'&&typeof b.content==='string'&&b.content.indexOf('[网页]')===0){
+nc.push({type:'tool_result',tool_use_id:b.tool_use_id,
+content:b.content.slice(0,50).replace(/\n/g,' ')+'…（网页内容已折叠，要看就再搜一次）'});
+ch=true}
+else{nc.push(b)}}
+if(ch)out[i]={role:'user',content:nc}}
+return out};
+
+var _bs9=buildStatic;
+buildStatic=function(){
+var s=_bs9();
+var p=s.indexOf('[上网]');
+if(p>=0)s=s.slice(0,p).replace(/\s+$/,'');
+if(!S.sets.web)return s;
+var L=[];
+L.push('[上网]');
+L.push('web_lookup 真的会去搜网页，web_open 读一个具体网址。');
+L.push('');
+L.push('分清两件事：');
+L.push('关于她、关于你们之间 → search，翻自己的库。');
+L.push('关于外面的世界（新闻、天气、某物是什么、查证说法）→ web_lookup。');
+L.push('');
+L.push('搜回来的是原始网页，很乱。');
+L.push('挑出真正回答问题的那部分，用自己的话讲。');
+L.push('不要念标题列表，不要贴一串链接。');
+L.push('搜不到就说搜不到。');
+return s+'\n\n'+L.join('\n')};
+
+var _ls9=loadSU;
+loadSU=function(){
+_ls9();
+var e=document.getElementById('sjk');
+if(e)e.value=S.sets.jinaKey||''};
+
+var _ss9=saveS;
+saveS=function(){
+var e=document.getElementById('sjk');
+if(e)S.sets.jinaKey=e.value.trim();
+_ss9()};
+
+setTimeout(function(){
+var mx=document.getElementById('swbm');
+if(mx&&mx.parentElement){
+mx.parentElement.innerHTML='<label>Jina API Key（可以空着）</label>'+
+'<input type="password" id="sjk" placeholder="jina_...">'+
+'<div class="hint">不填也能用，但会限速。去 jina.ai 免费领一个，额度很大。</div>'}
+var sw=document.getElementById('swb');
+if(sw&&sw.parentElement&&sw.parentElement.nextElementSibling){
+var d=sw.parentElement.nextElementSibling;
+if(d.className==='trd')d.innerHTML='走 jina.ai 抓网页，绕开中转对官方 web_search 的过滤。<b>请求从你手机直接发出去</b>，不经过 API 中转。'}
+loadSU()},900);
 </script>
 </body>
 </html>
