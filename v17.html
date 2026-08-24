@@ -3806,6 +3806,157 @@ var d=document.createElement('div');
 d.innerHTML='<button class="dbtn dbtn-s" onclick="runWebTest()">测试联网</button>'+
 '<div class="statbox" id="wtOut" style="white-space:pre-wrap;font-family:monospace;font-size:11px;line-height:1.7">点上面按钮跑一遍</div>';
 box.appendChild(d)},1200);
+  
+/* ═══════════ v17.13：带前缀的 id ═══════════ */
+var MODN={M:'记忆碎片',T:'她的念头',A:'你的念头',D:'日记',L:'时间线'};
+var NEEDP={edit_memory:'M',confirm_memory:'M',delete_memory:'M',archive_memory:'M',unarchive_memory:'M',
+reply_thought:'T',read_diary:'D',edit_diary:'D',delete_diary:'D',star_diary:'D',add_comment:'D',
+edit_milestone:'L',delete_milestone:'L'};
+
+function splitId(v){
+if(v===undefined||v===null)return null;
+var s=String(v).trim().toUpperCase().replace(/\s|#/g,'');
+var m=s.match(/^([MTADL])?(\d+)$/);
+if(!m)return{p:'',n:parseInt(String(v).replace(/[^0-9]/g,''))};
+return{p:m[1]||'',n:parseInt(m[2])}}
+
+var _etP=execTool;
+execTool=function(n,i){
+var need=NEEDP[n];
+if(need&&i){
+var fld=(n==='add_comment')?'diary_id':'id';
+var g=splitId(i[fld]);
+if(g&&!isNaN(g.n)){
+if(g.p&&g.p!==need){
+return'❌ 没执行。'+g.p+g.n+' 是「'+(MODN[g.p]||g.p)+'」里的，'+n+' 只能用「'+MODN[need]+'」的编号（'+need+'开头）。\n\n先确认你要动的是哪个模块，再重来。'}
+i[fld]=g.n}}
+var pre='';
+if(n==='delete_memory'&&i){var x=byN(S.mems,i.id);
+if(x>=0)pre='「'+String(S.mems[x].content||'').slice(0,40)+'」'}
+var r=_etP(n,i);
+if(typeof r==='string'&&need&&r.indexOf('失败')!==0&&r.indexOf('❌')!==0){
+r=r.replace(/id=(\d+)/g,need+'$1');
+if(pre)r+=' '+pre}
+return r};
+
+/* ── 上下文里的 id 全部带前缀 ── */
+var _bdP=buildDynamic;
+buildDynamic=function(cv){
+var s=_bdP(cv);
+s=s.replace(/<record id="(\d+)"/g,'<record id="M$1"');
+s=s.replace(/<t id="(\d+)"/g,'<t id="T$1"');
+s=s.replace(/<m id="(\d+)"/g,'<m id="L$1"');
+s=s.replace(/<e id="(\d+)"/g,'<e id="D$1"');
+s=s.replace(/<d id="(\d+)"/g,'<d id="D$1"');
+return s};
+
+var _bsP=buildStatic;
+buildStatic=function(){
+var s=_bsP();
+if(!S.sets.tools)return s;
+var L=[];
+L.push('[编号]');
+L.push('五个模块各有自己的编号，字母不能混：');
+L.push('M = 记忆碎片　T = 她的念头　D = 日记　L = 时间线');
+L.push('');
+L.push('M12 和 T12 是两个完全不同的东西。');
+L.push('调工具时把字母一起写上，比如 delete_memory(id="M12")。');
+L.push('拿不准就先 search 一次，搜索结果里带着正确的编号。');
+L.push('');
+L.push('删之前先确认字母对得上。删错了她要重新写一遍。');
+return s+'\n\n'+L.join('\n')};
+
+/* ── 工具描述 ── */
+(function(){
+var D={edit_memory:'更新已有记忆。id 用 M 开头的编号',
+confirm_memory:'把推断的记忆升级为确定的。id 用 M 编号',
+delete_memory:'永久删除一条记忆。id 用 M 编号。删之前确认字母是 M 不是 T',
+archive_memory:'收进抽屉：不再进上下文但搜得到。id 用 M 编号',
+unarchive_memory:'从抽屉放回上下文。id 用 M 编号',
+reply_thought:'回她念头流里的某一条。id 用 T 开头的编号，不是 M。上下文里只有最近 25 条，更早的用 search 搜，结果里带编号',
+read_diary:'读某篇日记全文和评论。id 用 D 编号',
+edit_diary:'编辑任意一篇日记。id 用 D 编号',
+delete_diary:'删除任意一篇日记。id 用 D 编号',
+star_diary:'收藏日记，全文进常驻区。why 必填。id 用 D 编号',
+add_comment:'在某篇日记下留一句。diary_id 用 D 编号',
+edit_milestone:'修改时间线节点。id 用 L 编号',
+delete_milestone:'删掉时间线节点。id 用 L 编号'};
+for(var i=0;i<TOOLS.length;i++){if(D[TOOLS[i].name])TOOLS[i].description=D[TOOLS[i].name]}})();
+
+/* ── 搜索结果带前缀 ── */
+var _dsaP=doSearchAll;
+doSearchAll=function(q,lim,scope){
+var rs=_dsaP(q,lim,scope),i;
+for(i=0;i<rs.length;i++){
+rs[i].head=rs[i].head
+.replace(/记忆 id=(\d+)/,'记忆 M$1')
+.replace(/日记 id=(\d+)/,'日记 D$1')
+.replace(/念头 id=(\d+)/,'念头 T$1')}
+return rs};
+
+/* ── 界面上也看得见 ── */
+var _rmP=rMems;
+rMems=function(){
+_rmP();
+var e=document.querySelectorAll('#ml .mc-id'),i;
+for(i=0;i<e.length;i++)e[i].textContent=e[i].textContent.replace('#','M')};
+
+var _rdP=rDiary;
+rDiary=function(){
+_rdP();
+var cs=document.querySelectorAll('#dl .dc'),i,b,m,t;
+for(i=0;i<cs.length;i++){
+b=cs[i].querySelector('.dc-tools button[onclick^="delDiary"]');
+if(!b)continue;
+m=String(b.getAttribute('onclick')||'').match(/(\d+)/);
+if(!m)continue;
+t=cs[i].querySelector('.dc-time');
+if(t&&t.textContent.indexOf('D'+m[1])<0)t.textContent='D'+m[1]+' · '+t.textContent}};
+
+function rThList(elId,arr,mine,an,un){
+var box=document.getElementById(elId);
+if(!box)return;
+box.innerHTML='';
+if(!arr.length){
+box.innerHTML='<div class="hint-empty" style="padding:24px">'+(mine?'不想组织语言的时候，丢一句就跑':'还没有念头')+'</div>';
+return}
+var pre=mine?'T':'A';
+arr.slice().reverse().forEach(function(t){
+var d=document.createElement('div');
+d.className='th';
+var h='<div class="th-b">'+esc(t.content)+'</div><div class="th-f"><span><span class="mc-id">'+pre+t.n+'</span> '+fmtFull(t.ts)+(t.editedTs?' · 改过':'')+'</span><span class="acts">';
+if(mine)h+='<button onclick="editMeTh('+t.n+')">改</button><button onclick="dropMeTh('+t.n+')">删</button>';
+else h+='<button onclick="replyTh('+t.n+')">回一句</button>';
+h+='</span></div>';
+if(t.replies&&t.replies.length){
+h+='<div class="th-rp">';
+t.replies.forEach(function(r){h+='<div class="rp"><b>'+(r.author==='user'?un:an)+'</b>'+esc(r.content)+'</div>'});
+h+='</div>'}
+d.innerHTML=h;
+box.appendChild(d)})}
+
+function rTimeline(){
+var b=document.getElementById('tlBody');
+if(!b)return;
+b.innerHTML='';
+if(!S.timeline.length){
+b.innerHTML='<div class="hint-empty" style="padding:28px">还没有节点<br><br>你们走到今天经过的地方<br>他也会自己往上记</div>';
+return}
+S.timeline.forEach(function(t){
+var d=document.createElement('div');
+d.className='tli';
+d.innerHTML='<div class="tli-w">'+esc(t.when)+'　<span class="mc-id">L'+t.n+'</span>'+(t.by==='ai'?'　· 他记的':'')+'</div><div class="tli-b">'+esc(t.what)+'</div><div class="tli-f"><button onclick="editMile('+t.n+')">改</button><button onclick="delMile('+t.n+')">删</button></div>';
+b.appendChild(d)})}
+
+var _rfP=rFav;
+rFav=function(){
+_rfP();
+var e=document.querySelectorAll('#favBody .fi-m'),i;
+for(i=0;i<e.length;i++){
+e[i].textContent=e[i].textContent.replace(/^id=(\d+)/,function(a,b){
+return (e[i].closest('.fgrp')&&e[i].closest('.fgrp').textContent.indexOf('日记')>=0?'D':'M')+b})}};
+
+setTimeout(function(){rUs();rMems();rDiary()},400);
 </script>
 </body>
 </html>
