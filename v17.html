@@ -3610,10 +3610,11 @@ if(a){
 a.setAttribute('onclick','openFixMenu()');
 a.innerHTML='<span class="lv">检查并修复</span><span class="rv" id="fixTag"></span><span class="cv">›</span>'}
 refreshSetList()},500);
-
-/* ═══════════ v17.10 联网 · 合并版 ═══════════ */
+  
+/* ═══════════ v17.9 联网 · 完整版 ═══════════ */
 if(S.sets.jinaKey===undefined)S.sets.jinaKey='';
 
+/* ── 工具定义 ── */
 var _btfW=buildToolsField;
 buildToolsField=function(){
 var t=_btfW()||[],out=[],i;
@@ -3622,15 +3623,16 @@ if(t[i].type)continue;
 if(t[i].cache_control)delete t[i].cache_control;
 out.push(t[i])}
 if(S.sets.web){
-out.push({name:'web_lookup',description:'上网搜索。用于外部世界的信息：新闻、天气、实时情况、某个东西是什么、查证一个说法。返回网页正文摘要。搜你们自己的记录不要用这个，用 search。',input_schema:{type:'object',properties:{query:{type:'string',description:'搜索词，像在搜索引擎里输入那样'}},required:['query']}});
-out.push({name:'web_open',description:'打开一个具体网址，读它的正文。搜索结果里有值得细看的页面时用。',input_schema:{type:'object',properties:{url:{type:'string'}},required:['url']}})}
+out.push({name:'web_lookup',description:'上网搜索，返回一批网页的标题、网址和摘要（不含正文，所以很快）。摘要够回答就直接答；需要具体内容再用 web_open 打开其中一条。用于外部世界的信息：新闻、天气、实时情况、某个东西是什么、查证一个说法。搜你们自己的记录用 search，不要用这个。',input_schema:{type:'object',properties:{query:{type:'string',description:'搜索词，像在搜索引擎里输入那样'}},required:['query']}});
+out.push({name:'web_open',description:'打开一个网址读全文。web_lookup 之后想细看哪一条就用它。比搜索慢，一次开一个。',input_schema:{type:'object',properties:{url:{type:'string'}},required:['url']}})}
 if(!out.length)return null;
 if(S.sets.cache)out[out.length-1].cache_control={type:'ephemeral'};
 return out};
 
+/* ── HTTP ── */
 async function webFetch(u,hdr,ms){
 var ac=new AbortController();
-var to=setTimeout(function(){try{ac.abort()}catch(e){}},ms||40000);
+var to=setTimeout(function(){try{ac.abort()}catch(e){}},ms||30000);
 try{
 var r=await fetch(u,{headers:hdr||{},signal:ac.signal});
 var txt=await r.text();
@@ -3650,40 +3652,47 @@ function webHint(t){
 var s=String(t);
 if(s.indexOf('429')>=0)return'\n（被限速了。设置里填 Jina Key 能大幅提额。）';
 if(s.indexOf('401')>=0||s.indexOf('402')>=0)return'\n（Key 无效或额度用完了。）';
-if(s.indexOf('abort')>=0)return'\n（超时了。）';
+if(s.indexOf('abort')>=0||s.indexOf('Abort')>=0)return'\n（超时了。没填 Key 的话很可能是在排队。）';
 return''}
 
+/* ── 执行 ── */
 var _etaW=execToolAsync;
 execToolAsync=async function(n,i){
 if(n==='web_lookup'){
 var q=String((i&&i.query)||'').trim();
 if(!q)return'失败：没给搜索词';
+var h=jinaHead();
+h['X-Respond-With']='no-content';
 var u='https://s.jina.ai/?q='+encodeURIComponent(q);
-var r=await webFetch(u,jinaHead(),40000);
-if(!r.ok&&String(r.t).indexOf('429')>=0){await sleep(3000);r=await webFetch(u,jinaHead(),40000)}
-if(!r.ok)return'[网页] 搜索失败：'+r.t+webHint(r.t)+'\n\n告诉她这次是搜索本身失败了，不是查不到。别编内容。';
+var r=await webFetch(u,h,25000);
+if(!r.ok&&String(r.t).indexOf('429')>=0){await sleep(2500);r=await webFetch(u,h,25000)}
+if(!r.ok)return'[网页] 搜索失败：'+r.t+webHint(r.t)+'\n\n告诉她这次搜索没成功，不是查不到。别编内容。';
 var t=String(r.t).replace(/\n{3,}/g,'\n\n').trim();
-if(!t)return'[网页] 返回是空的。告诉她没搜到，别编。';
-if(t.length>7000)t=t.slice(0,7000)+'\n…（还有更多。要细节就 web_open 点进最相关那个链接）';
-return'[网页] 搜「'+q+'」：\n\n'+t+'\n\n———\n用自己的话回答。信息不够就 web_open 点进最相关的链接。确实查不到就直接说查不到。'}
+if(!t)return'[网页] 没有结果。告诉她搜不到，别编。';
+if(t.length>4500)t=t.slice(0,4500)+'\n…（还有更多结果）';
+return'[网页] 搜「'+q+'」的结果列表（只有摘要，没有正文）：\n\n'+t+'\n\n———\n摘要够回答就直接答。不够就挑最相关的一条 web_open 打开看全文。别凭标题猜内容。'}
 if(n==='web_open'){
 var u2=String((i&&i.url)||'').trim();
 if(!u2)return'失败：没给网址';
 if(u2.indexOf('http')!==0)u2='https://'+u2;
-var r2=await webFetch('https://r.jina.ai/'+u2,jinaHead(),40000);
-if(!r2.ok)return'[网页] 打不开：'+r2.t+webHint(r2.t);
+var h2=jinaHead();
+h2['X-Retain-Images']='none';
+var r2=await webFetch('https://r.jina.ai/'+u2,h2,50000);
+if(!r2.ok)return'[网页] 打不开：'+r2.t+webHint(r2.t)+'\n\n换一条链接试试，或者跟她说这页读不了。';
 var t2=String(r2.t).replace(/\n{3,}/g,'\n\n').trim();
-if(!t2)return'[网页] 这一页没有正文。';
+if(!t2)return'[网页] 这一页没有正文。换一条。';
 if(t2.length>7000)t2=t2.slice(0,7000)+'\n…（后面截断了）';
-return'[网页] '+u2+' 的正文：\n\n'+t2}
+return'[网页] '+u2+'：\n\n'+t2}
 return _etaW(n,i)};
 
+/* ── 气泡下的小字 ── */
 var _tlW=toolLabel;
 toolLabel=function(n){
 if(n==='web_lookup')return'上网搜了搜';
 if(n==='web_open')return'打开了一个网页';
 return _tlW(n)};
 
+/* ── 旧网页内容折叠，不占上下文 ── */
 var _bamW=buildApiMs;
 buildApiMs=function(cv){
 var out=_bamW(cv),stop=Math.max(0,out.length-3),i,j,m,b;
@@ -3701,6 +3710,7 @@ else{nc.push(b)}}
 if(ch)out[i]={role:'user',content:nc}}
 return out};
 
+/* ── 提示词 ── */
 var _bsW=buildStatic;
 buildStatic=function(){
 var s=_bsW(),p=s.indexOf('[上网]');
@@ -3708,19 +3718,20 @@ if(p>=0)s=s.slice(0,p).replace(/\s+$/,'');
 if(!S.sets.web)return s;
 var L=[];
 L.push('[上网]');
-L.push('web_lookup 真的会去搜网页，web_open 读一个具体网址。');
+L.push('两步走。');
+L.push('web_lookup 先看一批摘要——快，几秒钟。');
+L.push('摘要够回答就直接答。不够再 web_open 打开最相关的那一条读全文。');
 L.push('');
 L.push('分清两件事：');
 L.push('关于她、关于你们之间 → search，翻自己的库。');
 L.push('关于外面的世界（新闻、天气、某物是什么、查证说法）→ web_lookup。');
 L.push('');
-L.push('搜回来的是原始网页，很乱。');
-L.push('挑出真正回答问题的那部分，用自己的话讲。');
+L.push('没打开过的页面，不要替它说里面写了什么。');
 L.push('不要念标题列表，不要贴一串链接。');
-L.push('信息不够就 web_open 点进最相关的那一个。');
 L.push('搜不到就说搜不到，别编。');
 return s+'\n\n'+L.join('\n')};
 
+/* ── 设置项 ── */
 var _lsW=loadSU;
 loadSU=function(){
 _lsW();
@@ -3736,7 +3747,7 @@ _ssW()};
 setTimeout(function(){
 var mx=document.getElementById('swbm');
 if(mx&&mx.parentElement){
-mx.parentElement.innerHTML='<label>Jina API Key</label><input type="password" id="sjk" placeholder="jina_..."><div class="hint">不填也能用，但限速很紧、容易 429。去 jina.ai 免费领一个。</div>'}
+mx.parentElement.innerHTML='<label>Jina API Key</label><input type="password" id="sjk" placeholder="jina_..."><div class="hint">不填也能用，但限速很紧、容易超时。去 jina.ai 免费领一个。</div>'}
 var sw=document.getElementById('swb');
 if(sw&&sw.parentElement&&sw.parentElement.nextElementSibling){
 var d=sw.parentElement.nextElementSibling;
