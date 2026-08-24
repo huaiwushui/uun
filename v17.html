@@ -2644,10 +2644,8 @@ document.getElementById('lki').addEventListener('keydown',function(e){if(e.key==
 if(sessionStorage.getItem('fw_unlock')==='1'){document.getElementById('lock').style.display='none';init()}
 
 /* ═══════════════════════════════════════
-   v18 · 单块合并
-   1 对齐 2 上下文 3 搜索
-   4 联网 5 工具 6 界面
-   存储版本仍是 17，备份互通
+   v18 合并版 · 第一段
+   1 对齐修复 · 2 上下文 · 3 搜索
    ═══════════════════════════════════════ */
 
 /* ════ 1 对齐修复 ════ */
@@ -2667,7 +2665,7 @@ var n=0;
 if(!cv||!cv.api)return 0;
 cv.api.forEach(function(m){
 if(m.role!=='user'||m._cont)return;
-var t=typeof m.content==='string'?m.content:'';
+var t=(typeof m.content==='string')?m.content:'';
 if(t.indexOf('你上一条说到')>=0&&t.indexOf('[系统提示')===0){m._cont=true;n++}});
 return n}
 
@@ -2676,7 +2674,7 @@ if(!cv||!cv.msgs||!cv.api)return null;
 var mT=0,aT=0;
 cv.msgs.forEach(function(m){if(m.role==='user'||m.role==='sys')mT++});
 cv.api.forEach(function(m){if(isCleanUser(m))aT++});
-return{m:mT,a:aT,ok:mT===aT}}
+return{m:mT,a:aT,ok:(mT===aT)}}
 
 function badCount(){
 var bad=0;
@@ -2719,7 +2717,8 @@ function deepAlign(){
 var cv=S.convs[S.cur];
 if(!cv||cv.cold){toast('没有可处理的对话');return}
 var ck=alignCheck(cv);
-ask('按屏幕上的记录重建发给他的历史。\n\n屏幕 '+(ck?ck.m:'?')+' 轮 / 历史 '+(ck?ck.a:'?')+' 轮\n\n屏幕上看到的就是唯一真相。\n\n代价：思考链会丢。文字和图片一个都不少。',function(){
+ask('按屏幕上的记录重建发给他的历史。\n\n屏幕 '+(ck?ck.m:'?')+' 轮 / 历史 '+(ck?ck.a:'?')+
+' 轮\n\n屏幕上看到的就是唯一真相。\n\n代价：思考链会丢。文字和图片一个都不少。',function(){
 var api=[];
 cv.msgs.forEach(function(m){
 if(m.err)return;
@@ -2735,7 +2734,7 @@ api.push({role:'assistant',content:[{type:'text',text:m.text||'…'}]})}});
 cv.api=sanitize(api);
 pinDirty();saveNow();
 var k2=alignCheck(cv);
-toast('重建完成\n'+cv.api.length+' 条\n\n'+(k2&&k2.ok?'✓ 现在一致':'检查：'+k2.m+'/'+k2.a))},true)}
+toast('重建完成\n'+cv.api.length+' 条\n\n'+((k2&&k2.ok)?'✓ 现在一致':'检查：'+k2.m+'/'+k2.a))},true)}
 
 function delSelected(){
 if(!SEL_SET.size)return;
@@ -2831,11 +2830,7 @@ var cu=[];
 for(i=0;i<n;i++){if(isCleanUser(api[i]))cu.push(i)}
 var start=(cu.length>turns)?cu[cu.length-turns]:0;
 var imgStart=(cu.length>imgT)?cu[cu.length-imgT]:0;
-var out=[],imgNo=-1;
-for(i=0;i<start;i++){
-if(Array.isArray(api[i].content)){
-for(j=0;j<api[i].content.length;j++){
-if(api[i].content[j].type==='image')imgNo++}}}
+var out=[];
 for(i=start;i<n;i++){
 m=api[i];
 var isTR=(m.role==='user'&&Array.isArray(m.content)&&m.content[0]&&m.content[0].type==='tool_result');
@@ -2847,10 +2842,9 @@ if(hasImg){
 var nc=[];
 for(j=0;j<m.content.length;j++){
 b=m.content[j];
-if(b.type==='image'){
-imgNo++;
-if(i<imgStart){nc.push({type:'text',text:'[图片#'+imgNo+' 已折叠，要看用 recall_image]'})}
-else{nc.push(b)}}
+if(b.type==='image'&&i<imgStart){
+nc.push({type:'text',text:'[有张图，折叠了。ref='+(b._k||'?')+
+'　要看就 recall_image(ref="…")]'})}
 else{nc.push(b)}}
 out.push({role:'user',content:nc});continue}}
 if(m.role==='assistant'&&Array.isArray(m.content)){
@@ -2878,7 +2872,8 @@ ch=true}
 else if(b.type==='tool_result'&&Array.isArray(b.content)){
 var inn=[];
 for(k=0;k<b.content.length;k++){
-if(b.content[k].type==='image'){inn.push({type:'text',text:'[取回的图已折叠]'});ch=true}
+if(b.content[k].type==='image'){
+inn.push({type:'text',text:'[取回的图已折叠，需要就再 recall 一次]'});ch=true}
 else{inn.push(b.content[k])}}
 c2.push({type:'tool_result',tool_use_id:b.tool_use_id,content:inn})}
 else{c2.push(b)}}
@@ -2940,7 +2935,7 @@ L.push('[日记页 = 一条流]');
 L.push('日记、碎碎念、时间线节点都在同一条流里按时间排。');
 L.push('日记是想说完整一件事，碎碎念是随手一句。轻重不同，地方是一个。');
 L.push('');
-L.push('[两个索引，别让它们空着]');
+L.push('[三样索引，别让它们空着]');
 L.push('时间线 = 这段关系的目录。她想回看某一段，先看时间线定位。');
 L.push('记节点时带上 quote，锚到那条消息，她点一下就能跳回去。');
 L.push('真正是转折的才记，十几条就够勾出整段的形状。');
@@ -2949,8 +2944,21 @@ L.push('钉住 = 对抗上下文淘汰的唯一手段。');
 L.push('超过轮数的对话会从你眼前消失，只有钉住的留下。');
 L.push('她说了某句你不想忘的话，当场钉。why 写清为什么。');
 L.push('');
-L.push('上下文装不下全部历史，所以你有 search、时间线、钉住这三样。');
-L.push('它们的用处是同一个：让过去还找得回来。');
+L.push('search = 把过去捞回来。上下文装不下全部历史，所以有它。');
+L.push('这三样的用处是同一个：让过去还找得回来。');
+L.push('');
+L.push('[搜到之后]');
+L.push('search 给的是片段。只看片段容易误会当时的意思。');
+L.push('要判断她当时什么心情、那句话前后发生了什么，用 read_around 把上下文拉出来。');
+L.push('read_around 末尾会给继续翻的 ref，可以一路读下去。');
+L.push('引用一句旧话之前，先确认前后文对得上。');
+L.push('');
+L.push('[图片]');
+L.push('超过图片轮数的图会折叠成一行 ref=xxx。想看就 recall_image(ref="xxx")。');
+L.push('ref 是图片自己的编号，跨对话也认，永远不会指错。');
+L.push('只发图没打字的消息，search 搜不到——因为没有文字可搜。');
+L.push('她说「之前发的那张图」而你上下文里没有，用 list_images 找，能按日期筛。');
+L.push('没真取回来之前，不要描述图里有什么。取不回来就说找不到了，别编。');
 L.push('');
 L.push('[谁的东西谁动]');
 L.push('A 是你的碎碎念，delete_thought / edit_thought 能删能改。');
@@ -3127,7 +3135,7 @@ if(marks[i].a>hi)hi=marks[i].a}
 var span=hi-lo;
 if(span<80){sc+=16}else if(span<300){sc+=6}}
 if(t.length>600)sc+=2;
-return{n:marks.length,at:(first<0?0:first),sc:sc,marks:marks,terms:terms}}
+return{n:marks.length,at:((first<0)?0:first),sc:sc,marks:marks,terms:terms}}
 
 function matchItem(txt,ts,Q){
 if(!Q)return true;
@@ -3156,8 +3164,10 @@ if(c.cold){add('冷存对话','【'+(c.title||'对话')+'｜冷存】',String(c.
 if(!c.msgs)return;
 c.msgs.forEach(function(m,mi){
 if(m.role==='sys'||m.err)return;
-add('对话','【'+(c.title||'对话')+'｜'+fmtFull(m.ts)+'｜'+(m.role==='user'?un:an)+'】',
-String(m.text||''),m.ts,m.pin?6:0,{cid:cid,i:mi})})})}
+var hd='【'+(c.title||'对话')+'｜'+fmtFull(m.ts)+'｜'+(m.role==='user'?un:an);
+if(m.ik&&m.ik.length)hd+='｜'+m.ik.length+' 张图 ref='+m.ik.join(' ');
+hd+='】';
+add('对话',hd,String(m.text||''),m.ts,m.pin?6:0,{cid:cid,i:mi})})})}
 if(!scope||scope==='diary'){
 S.diary.forEach(function(d){
 var t=String(d.content||''),j;
@@ -3165,7 +3175,7 @@ if(d.comments){for(j=0;j<d.comments.length;j++)t+=' '+String(d.comments[j].conte
 add('日记','【日记 D'+d.n+'｜'+(d.author==='user'?un:an)+'｜'+fmtFull(d.ts)+'】',t,d.ts,d.star?8:2)})}
 if(!scope||scope==='memory'){
 S.mems.forEach(function(m){
-add('记忆','【记忆 M'+m.n+(m.tag?'｜'+m.tag:'')+(m.arch?'｜抽屉里':'')+'】',
+add('记忆','【记忆 M'+m.n+(m.tag?('｜'+m.tag):'')+(m.arch?'｜抽屉里':'')+'】',
 String(m.content||'')+' '+String(m.tag||''),m.createdAt,m.arch?0:5)})}
 if(!scope||scope==='thought'){
 S.me.th.forEach(function(t){
@@ -3198,7 +3208,7 @@ if(ms[i].a<p)continue;
 res+=esc(seg.slice(p,ms[i].a))+'<em>'+esc(seg.substr(ms[i].a,ms[i].l))+'</em>';
 p=ms[i].a+ms[i].l}
 res+=esc(seg.slice(p));
-return (s>0?'…':'')+res+(e<b.length?'…':'')}
+return ((s>0)?'…':'')+res+((e<b.length)?'…':'')}
 
 function doSearch(){
 var q=document.getElementById('sinp').value.trim();
@@ -3234,6 +3244,11 @@ if(matchItem(String(el.textContent||''),ts,Q)){
 el.classList.add('hl');el.style.contentVisibility='visible';n++}
 else{el.classList.remove('hl');el.style.removeProperty('content-visibility')}});
 document.getElementById('scnt').textContent=n+'条'}}
+
+/* ═══════════════════════════════════════
+   v18 合并版 · 第二段
+   4 联网 · 5 工具 · 6 界面 · 7 性能
+   ═══════════════════════════════════════ */
 
 /* ════ 4 联网 ════ */
 if(S.sets.web===undefined)S.sets.web=false;
@@ -3305,49 +3320,7 @@ webProbe().then(function(s){
 var e2=document.getElementById('wtOut');
 if(e2)e2.textContent=s})}
 
-var _etaBase=execToolAsync;
-execToolAsync=async function(n,i){
-if(n==='web_lookup'){
-var q=String((i&&i.query)||'').trim();
-if(!q)return'失败：没给搜索词';
-var h=jinaHead();
-h['X-Respond-With']='no-content';
-var r=await webFetch('https://s.jina.ai/?q='+encodeURIComponent(q),h,20000);
-var e1='';
-if(!r.ok){
-e1=String(r.t).slice(0,110);
-r=await webFetch('https://r.jina.ai/https://lite.duckduckgo.com/lite/?q='+encodeURIComponent(q),jinaHead(),25000)}
-if(!r.ok)return'[网页] 两条路都不通。\n主：'+e1+'\n备：'+String(r.t).slice(0,110)+webHint(r.t)+
-'\n\n告诉她这次是搜索连不上，不是查不到。别编内容。';
-var t=String(r.t).replace(/\n{3,}/g,'\n\n').trim();
-if(!t)return'[网页] 返回空的。告诉她搜不到，别编。';
-if(t.length>4500)t=t.slice(0,4500)+'\n…（还有更多）';
-return'[网页] 搜「'+q+'」'+(e1?'（备用通道）':'')+'：\n\n'+t+
-'\n\n———\n摘要够回答就直接答。不够就挑最相关的一条 web_open 打开。别凭标题猜内容。'}
-if(n==='web_open'){
-var u=String((i&&i.url)||'').trim();
-if(!u)return'失败：没给网址';
-if(u.indexOf('http')!==0)u='https://'+u;
-var h2=jinaHead();
-h2['X-Retain-Images']='none';
-var r2=await webFetch('https://r.jina.ai/'+u,h2,45000);
-if(!r2.ok)return'[网页] 打不开：'+String(r2.t).slice(0,110)+webHint(r2.t)+
-'\n\n只能用搜索摘要里的信息。别替这个页面编内容。';
-var t2=String(r2.t).replace(/\n{3,}/g,'\n\n').trim();
-if(!t2)return'[网页] 这一页没有正文。换一条。';
-if(t2.length>7000)t2=t2.slice(0,7000)+'\n…（后面截断了）';
-return'[网页] '+u+'：\n\n'+t2}
-return _etaBase(n,i)};
-
-var _tlBase=toolLabel;
-toolLabel=function(n){
-var M={web_lookup:'上网搜了搜',web_open:'打开了一个网页',
-delete_thought:'删了条碎碎念',edit_thought:'改了条碎碎念',
-delete_comment:'删了自己的评论',list_memories:'翻了翻记忆库',
-restore_self:'退回了上一版的自己'};
-return M[n]||_tlBase(n)};
-
-/* ════ 5 工具：编号 + 校验 + 记录 ════ */
+/* ════ 5 工具 ════ */
 var MODN={M:'记忆碎片',T:'她的碎碎念',A:'你的碎碎念',D:'日记',L:'时间线'};
 var NEEDP={edit_memory:'M',confirm_memory:'M',delete_memory:'M',archive_memory:'M',
 unarchive_memory:'M',reply_thought:'T',read_diary:'D',edit_diary:'D',delete_diary:'D',
@@ -3408,6 +3381,27 @@ var m=s.match(/^([MTADL])?(\d+)$/);
 if(!m)return{p:'',n:parseInt(String(v).replace(/[^0-9]/g,''))};
 return{p:(m[1]||''),n:parseInt(m[2])}}
 
+function allImgs(){
+var out=[],un=S.sets.userName||'小u',an=S.sets.aiName||'Renn';
+Object.keys(S.convs).forEach(function(cid){
+var c=S.convs[cid];
+if(!c||c.cold||!c.msgs)return;
+c.msgs.forEach(function(m,mi){
+if(!m.ik||!m.ik.length)return;
+m.ik.forEach(function(k){
+out.push({k:k,ts:m.ts||0,where:'对话「'+(c.title||'对话')+'」',
+who:(m.role==='user'?un:an),
+text:String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' '),
+cid:cid,mi:mi})})})});
+S.diary.forEach(function(d){
+if(!d.ik||!d.ik.length)return;
+d.ik.forEach(function(k){
+out.push({k:k,ts:d.ts||0,where:'日记 D'+d.n,
+who:(d.author==='user'?un:an),
+text:String(d.content||'').replace(/\s+/g,' ')})})});
+out.sort(function(a,b){return b.ts-a.ts});
+return out}
+
 TOOLS.push({name:'delete_thought',description:'删掉你自己的一条碎碎念。id 用 A 开头的编号。她的（T）你动不了。',
 input_schema:{type:'object',properties:{id:{type:'string',description:'A 开头，比如 A7'}},required:['id']}});
 TOOLS.push({name:'edit_thought',description:'改写你自己的某条碎碎念。id 用 A 编号。',
@@ -3418,6 +3412,10 @@ TOOLS.push({name:'list_memories',description:'列出记忆。想看抽屉里有�
 input_schema:{type:'object',properties:{tag:{type:'string',description:'只看这个标签，可空'},archived:{type:'boolean',description:'true=只看抽屉里的'},limit:{type:'integer'}},required:[]}});
 TOOLS.push({name:'restore_self',description:'把自我描述退回上一个版本。改坏了用它。',
 input_schema:{type:'object',properties:{},required:[]}});
+TOOLS.push({name:'list_images',description:'列出发过的图片，给出每张的 ref 和当时说的话。只发图没打字的消息 search 搜不到，想找旧图就用这个。拿到 ref 再用 recall_image 看。',
+input_schema:{type:'object',properties:{
+date:{type:'string',description:'只看某天，写 3.15 / 3月15日 / 今天 / 昨天。可空'},
+limit:{type:'integer',description:'默认 20'}},required:[]}});
 
 (function(){
 var D={
@@ -3438,18 +3436,29 @@ add_milestone:'往时间线记一个节点。时间线是你们这段关系的�
 edit_milestone:'修改时间线节点。id 用 L 编号',
 delete_milestone:'删掉时间线节点。id 用 L 编号',
 pin_message:'钉住这个对话里的某条消息。钉住的话永久留在上下文里，不被轮数淘汰——这是对抗遗忘的唯一手段。why 必填。on:false 取消',
-search:'全库搜索：对话、日记、碎碎念、记忆、时间线。多个关键词用空格隔开是「而且」关系。减号排除。也能按日期搜：3.15 / 3月15日 / 2026.3.15 / 3月 / 今天 / 昨天。日期能和关键词混用。只给日期时按时间正序排。scope 只能填 chat / diary / memory / thought / timeline，不确定就别填'};
+search:'全库搜索：对话、日记、碎碎念、记忆、时间线。多个关键词用空格隔开是「而且」关系。减号排除。也能按日期搜：3.15 / 3月15日 / 2026.3.15 / 3月 / 今天 / 昨天。日期能和关键词混用。只给日期时按时间正序排。scope 只能填 chat / diary / memory / thought / timeline，不确定就别填',
+read_around:'展开搜索结果的前后文，看那句话前后各说了什么。ref 直接抄搜索结果里的那一行。span 是前后各几条，默认 5，最多 15。返回末尾会给继续往前/往后翻的 ref，想一路读下去就接着用',
+recall_image:'取回一张折叠的图。ref 填折叠提示里给的那一串，或者 list_images 列出来的。跨对话也能取'};
 var i;
 for(i=0;i<TOOLS.length;i++){
 if(D[TOOLS[i].name])TOOLS[i].description=D[TOOLS[i].name];
 if(TOOLS[i].name==='add_milestone'){
-TOOLS[i].input_schema.properties.quote={type:'string',description:'这一刻对应的那条消息里的一小段原文，做锚点用。可空'}}}})();
+TOOLS[i].input_schema.properties.quote={type:'string',description:'这一刻对应的那条消息里的一小段原文，做锚点用。可空'}}
+if(TOOLS[i].name==='read_around'){
+TOOLS[i].input_schema={type:'object',properties:{
+ref:{type:'string',description:'搜索结果里给的 ref，形如 1756...:12'},
+span:{type:'integer',description:'前后各几条，默认 5'}},required:['ref']}}
+if(TOOLS[i].name==='recall_image'){
+TOOLS[i].input_schema={type:'object',properties:{
+ref:{type:'string',description:'图片的 ref，形如 im1a2b3c'},
+index:{type:'integer',description:'老式序号，能用 ref 就别用这个'}},required:[]}}}})();
 
 var _etBase=execTool;
 execTool=function(n,i){
 var r,g,x,k;
 i=i||{};
 
+/* ── 碎碎念：自己的能删能改 ── */
 if(n==='delete_thought'||n==='edit_thought'){
 g=splitId(i.id);
 if(!g||isNaN(g.n)){r='失败：没给编号。你自己的碎碎念是 A 开头的。'}
@@ -3471,6 +3480,7 @@ saveNow();rUs();rDiary();
 r='已改写 A'+g.n}}
 logTool(n,i,r);return r}
 
+/* ── 删自己的评论 ── */
 if(n==='delete_comment'){
 g=splitId(i.diary_id);
 if(!g||isNaN(g.n)){r='失败：没给日记编号'}
@@ -3494,6 +3504,7 @@ cs.splice(hit,1);saveNow();rDiary();
 r='已删除你在 D'+g.n+' 下的评论「'+cw+'」'}}}}
 logTool(n,i,r);return r}
 
+/* ── 列记忆 ── */
 if(n==='list_memories'){
 var tag=String(i.tag||'').trim(),arch=(i.archived===true);
 var lim=parseInt(i.limit);
@@ -3516,13 +3527,116 @@ var o=(arch?'抽屉里':'常驻')+(tag?('｜标签「'+tag+'」'):'')+' 共 '+fl
 if(fl.length>lim)o+='，列最近 '+lim+' 条';
 o+='：\n\n';
 fl.slice(-lim).reverse().forEach(function(m){
-o+='M'+m.n+(m.tag?('　['+m.tag+']'):'')+(m.sure==='inferred'?'　(推断)':'')+
+o+='M'+m.n+(m.tag?('　['+m.tag+']'):'')+((m.sure==='inferred')?'　(推断)':'')+
 (m.locked?'　(锁定)':'')+'\n'+String(m.content||'')+'\n\n'});
 o+='———\n常驻 '+cntM()+' 条，抽屉 '+(S.mems.length-cntM())+' 条。';
 if(allT.length)o+='\n所有标签：'+allT.join(' ');
 r=o}
 logTool(n,i,r);return r}
 
+/* ── 列图片 ── */
+if(n==='list_images'){
+var arr=allImgs(),total=arr.length;
+var lm=parseInt(i.limit);
+if(isNaN(lm)||lm<1)lm=20;
+if(lm>60)lm=60;
+if(i.date){
+var Qd=qSplit(String(i.date));
+if(Qd&&Qd.ds.length){arr=arr.filter(function(y){return dateOK(y.ts,Qd.ds)})}}
+if(!arr.length){
+r=i.date?('那天没有图片。全库一共 '+total+' 张。'):'一张图都没有。'}
+else{
+var oi='共 '+arr.length+' 张'+((arr.length>lm)?('，列最近 '+lm+' 张'):'')+'：\n\n';
+arr.slice(0,lm).forEach(function(y){
+oi+='ref='+y.k+'\n'+fmtFull(y.ts)+'　'+y.where+'　'+y.who+'\n';
+oi+=y.text?('当时说：'+y.text.slice(0,60)+((y.text.length>60)?'…':'')+'\n\n')
+:'（只发了图，没打字）\n\n'});
+oi+='———\n想看哪张就 recall_image(ref="…")。一次别取太多，图很占地方。';
+r=oi}
+logTool(n,i,r);return r}
+
+/* ── 取图 ── */
+if(n==='recall_image'){
+var rf=String(i.ref||'').trim();
+if(rf){
+if(rf.indexOf('im')!==0){
+var rm=rf.match(/im[0-9a-z]+/i);
+if(rm)rf=rm[0]}
+logTool(n,i,'取回 ref='+rf);
+return'PENDING:'+rf}
+var ix=parseInt(i.index);
+if(isNaN(ix)){
+r='失败：没给 ref。用 list_images 看一眼有哪些图，它会给出每张的 ref。';
+logTool(n,i,r);return r}
+var cvi=S.convs[S.cur],ks=[];
+if(cvi&&cvi.msgs){
+cvi.msgs.forEach(function(m){if(m.ik)m.ik.forEach(function(kk2){ks.push(kk2)})})}
+if(!ks[ix]){
+r='失败：这个对话只有 '+ks.length+' 张图，没有第 '+ix+' 张。用 list_images 拿准确的 ref。';
+logTool(n,i,r);return r}
+logTool(n,i,'取回 index='+ix);
+return'PENDING:'+ks[ix]}
+
+/* ── 读前后文 ── */
+if(n==='read_around'){
+var raw=String(i.ref||'').trim();
+if(!raw){
+r='失败：没给 ref。搜索结果里每条对话后面都有一行 ref=…，把它填进来。';
+logTool(n,i,r);return r}
+var pm=raw.match(/([0-9]{10,})\s*[:：]\s*(\d+)/);
+var cid=null,idx=-1;
+if(pm){cid=pm[1];idx=parseInt(pm[2])}
+else{
+var ps=raw.split(/[:：]/);
+if(ps.length>=2){cid=ps[0].trim();idx=parseInt(ps[1])}}
+if(!cid||isNaN(idx)){
+r='失败：ref 看不懂（「'+raw.slice(0,40)+'」）。正确的样子是 ref=1756...:12，直接抄搜索结果那一行。';
+logTool(n,i,r);return r}
+var c=S.convs[cid];
+if(!c){r='失败：那个对话不在了。';logTool(n,i,r);return r}
+if(c.cold){
+warmOne(cid).then(function(ok){if(ok){renderCL();toast('已取回冷存对话')}});
+r='「'+(c.title||'对话')+'」在冷存里，正在取回。下一轮再用同一个 ref 就能读到了。';
+logTool(n,i,r);return r}
+if(!c.msgs||!c.msgs[idx]){
+r='失败：位置越界。「'+(c.title||'对话')+'」一共 '+((c.msgs&&c.msgs.length)||0)+' 条。';
+logTool(n,i,r);return r}
+var sp=parseInt(i.span);
+if(isNaN(sp)||sp<1)sp=5;
+if(sp>15)sp=15;
+var an2=S.sets.aiName||'Renn',un2=S.sets.userName||'小u';
+var bf=[],af=[],y;
+for(k=idx-1;k>=0&&bf.length<sp;k--){
+y=c.msgs[k];
+if(y&&y.role!=='sys'&&!y.err)bf.unshift({m:y,i:k})}
+for(k=idx+1;k<c.msgs.length&&af.length<sp;k++){
+y=c.msgs[k];
+if(y&&y.role!=='sys'&&!y.err)af.push({m:y,i:k})}
+function line(o){
+var m=o.m,s='— '+((m.role==='user')?un2:an2)+'（'+fmtTs(m.ts)+'）';
+if(m.pin)s+=' 📌';
+s+='\n'+String(m.text||'').replace(/\n*\/\/\/+\n*/g,'\n');
+if(m.ik&&m.ik.length)s+='\n['+m.ik.length+' 张图 ref='+m.ik.join(' ')+']';
+if(!m.text&&!(m.ik&&m.ik.length))s+='\n（空）';
+return s+'\n\n'}
+var o2='【'+(c.title||'对话')+'】前后各 '+sp+' 条\n';
+if(bf.length&&bf[0].i>0)o2+='（上面还有 '+bf[0].i+' 条）\n';
+o2+='\n';
+bf.forEach(function(e){o2+=line(e)});
+var me=c.msgs[idx];
+o2+='━━ 这一条 ━━\n'+((me.role==='user')?un2:an2)+'（'+fmtFull(me.ts)+'）\n'+
+String(me.text||'').replace(/\n*\/\/\/+\n*/g,'\n');
+if(me.ik&&me.ik.length)o2+='\n['+me.ik.length+' 张图 ref='+me.ik.join(' ')+']';
+o2+='\n━━━━━━━━\n\n';
+af.forEach(function(e){o2+=line(e)});
+var left=c.msgs.length-1-(af.length?af[af.length-1].i:idx);
+if(left>0)o2+='（下面还有 '+left+' 条）\n';
+o2+='\n往前再翻用 ref='+cid+':'+(bf.length?bf[0].i:idx)+
+'　往后用 ref='+cid+':'+(af.length?af[af.length-1].i:idx);
+logTool(n,i,'读了 '+cid+':'+idx+' 前后 '+sp);
+return o2}
+
+/* ── 退回上一版自己 ── */
 if(n==='restore_self'){
 if(!S.ai.descPrev){r='失败：没有上一个版本。你还没改过自我描述。'}
 else{
@@ -3541,6 +3655,7 @@ logTool(n,i,r);return r}
 if(n==='update_self'&&String(i.content||'').trim()){
 if(S.ai.desc&&S.ai.desc!==i.content)S.ai.descPrev=S.ai.desc}
 
+/* ── 参数校验 ── */
 if(n==='search'&&i.scope){
 var sc=String(i.scope).trim().toLowerCase();
 if(SCOPEFIX[sc])sc=SCOPEFIX[sc];
@@ -3579,34 +3694,28 @@ logTool(n,i,r);return r}}}
 if(n==='read_conversation'&&i.title){
 var q2=String(i.title).toLowerCase(),hits=[];
 Object.keys(S.convs).forEach(function(id){
-var c=S.convs[id];
-if(c&&String(c.title||'').toLowerCase().indexOf(q2)>=0)hits.push(c.title||'对话')});
+var c2=S.convs[id];
+if(c2&&String(c2.title||'').toLowerCase().indexOf(q2)>=0)hits.push(c2.title||'对话')});
 if(hits.length>1){
 r='⚠️ 有 '+hits.length+' 个对话标题都含「'+i.title+'」：\n'+
 hits.map(function(t){return '· '+t}).join('\n')+'\n\n换个更精确的标题，或者用 search 搜内容。';
 logTool(n,i,r);return r}}
 
-var need=NEEDP[n];
-if(need){
-var fld=(n==='add_comment')?'diary_id':'id';
+/* ── 编号前缀 + 存在性 ── */
+var need=NEEDP[n],fld=(n==='add_comment')?'diary_id':'id';
+if(need||n==='add_comment'){
+var want=need||'D';
 g=splitId(i[fld]);
 if(g&&!isNaN(g.n)){
-if(g.p&&g.p!==need){
-r='❌ 没执行。'+g.p+g.n+' 属于「'+(MODN[g.p]||g.p)+'」，'+n+' 只认「'+MODN[need]+
-'」的编号（'+need+' 开头）。\n\n先确认要动哪个模块。';
+if(g.p&&g.p!==want){
+r='❌ 没执行。'+g.p+g.n+' 属于「'+(MODN[g.p]||g.p)+'」，'+n+' 只认「'+MODN[want]+
+'」的编号（'+want+' 开头）。\n\n先确认要动哪个模块。';
 logTool(n,i,r);return r}
-if(byN(collOf(need),g.n)<0){
-r='失败：没有 '+need+g.n+'（'+MODN[need]+'）。附近的编号：'+nearIds(need,g.n)+
+if(byN(collOf(want),g.n)<0){
+r='失败：没有 '+want+g.n+'（'+MODN[want]+'）。附近的编号：'+nearIds(want,g.n)+
 '\n\n拿不准就先 search 一次。';
 logTool(n,i,r);return r}
 i[fld]=g.n}}
-if(n==='add_comment'){
-g=splitId(i.diary_id);
-if(g&&!isNaN(g.n)){
-if(byN(S.diary,g.n)<0){
-r='失败：没有 D'+g.n+'。附近的：'+nearIds('D',g.n);
-logTool(n,i,r);return r}
-i.diary_id=g.n}}
 
 var pre='',before=-1;
 if(n==='delete_memory'){
@@ -3615,14 +3724,15 @@ if(x>=0){pre='「'+String(S.mems[x].content||'').slice(0,40)+'」';before=i.id}}
 
 var ref=null;
 if(n==='add_milestone'&&i.quote){
-var cv=S.convs[S.cur],qq=String(i.quote);
-if(cv&&cv.msgs){
-for(x=cv.msgs.length-1;x>=0;x--){
-if(cv.msgs[x].err||cv.msgs[x].role==='sys')continue;
-if(String(cv.msgs[x].text||'').indexOf(qq)>=0){ref={cid:S.cur,i:x};break}}}}
+var cv3=S.convs[S.cur],qq=String(i.quote);
+if(cv3&&cv3.msgs){
+for(x=cv3.msgs.length-1;x>=0;x--){
+if(cv3.msgs[x].err||cv3.msgs[x].role==='sys')continue;
+if(String(cv3.msgs[x].text||'').indexOf(qq)>=0){ref={cid:S.cur,i:x};break}}}}
 
 r=_etBase(n,i);
 
+/* ── 结果加尾注 ── */
 var mark=need||OUTP[n];
 if(typeof r==='string'&&mark&&r.indexOf('失败')!==0&&r.indexOf('❌')!==0&&r.indexOf('⚠️')!==0){
 r=r.replace(/id=(\d+)/g,mark+'$1')}
@@ -3636,12 +3746,13 @@ else if(n==='archive_memory'&&r.indexOf('已收进')>=0){saveNow();r+='　常驻
 else if(n==='unarchive_memory'&&r.indexOf('已放回')>=0){saveNow();r+='　常驻共 '+cntM()+' 条'}
 else if(n==='delete_diary'&&r.indexOf('已删除')>=0){saveNow();r+='　日记还剩 '+S.diary.length+' 篇'}
 else if(n==='create_diary'&&r.indexOf('已发布')>=0){saveNow();r+='　日记共 '+S.diary.length+' 篇'}
-else if(n==='delete_milestone'&&r.indexOf('已删除')>=0){saveNow();r+='　时间线还剩 '+S.timeline.length+' 个节点'}
+else if(n==='delete_milestone'&&r.indexOf('已删除')>=0){
+saveNow();rDiary();r+='　时间线还剩 '+S.timeline.length+' 个节点'}
 else if(n==='add_milestone'&&r.indexOf('已记下')>=0){
 var lastT=S.timeline[S.timeline.length-1];
 if(lastT&&ref){lastT.ref=ref;r+='　已锚到那条消息，她点「回到那里」能跳过去'}
 else if(i.quote&&!ref){r+='　（没找到含「'+String(i.quote).slice(0,20)+'」的消息，没能锚上）'}
-saveNow();r+='　时间线共 '+S.timeline.length+' 个节点';rDiary()}
+saveNow();rDiary();r+='　时间线共 '+S.timeline.length+' 个节点'}
 else if(n==='write_thought'&&r.indexOf('已写下')>=0){
 saveNow();rDiary();
 r='已写下 A'+S.seq.ath+'　你的碎碎念共 '+S.ai.th.length+' 条'}
@@ -3649,6 +3760,84 @@ else if(r.indexOf('已')===0){saveNow()}}
 
 logTool(n,i,r);
 return r};
+
+var _etaBase=execToolAsync;
+execToolAsync=async function(n,i){
+if(n==='web_lookup'){
+var q=String((i&&i.query)||'').trim();
+if(!q)return'失败：没给搜索词';
+var h=jinaHead();
+h['X-Respond-With']='no-content';
+var r=await webFetch('https://s.jina.ai/?q='+encodeURIComponent(q),h,20000);
+var e1='';
+if(!r.ok){
+e1=String(r.t).slice(0,110);
+r=await webFetch('https://r.jina.ai/https://lite.duckduckgo.com/lite/?q='+
+encodeURIComponent(q),jinaHead(),25000)}
+if(!r.ok)return'[网页] 两条路都不通。\n主：'+e1+'\n备：'+String(r.t).slice(0,110)+webHint(r.t)+
+'\n\n告诉她这次是搜索连不上，不是查不到。别编内容。';
+var t=String(r.t).replace(/\n{3,}/g,'\n\n').trim();
+if(!t)return'[网页] 返回空的。告诉她搜不到，别编。';
+if(t.length>4500)t=t.slice(0,4500)+'\n…（还有更多）';
+return'[网页] 搜「'+q+'」'+(e1?'（备用通道）':'')+'：\n\n'+t+
+'\n\n———\n摘要够回答就直接答。不够就挑最相关的一条 web_open 打开。别凭标题猜内容。'}
+if(n==='web_open'){
+var u=String((i&&i.url)||'').trim();
+if(!u)return'失败：没给网址';
+if(u.indexOf('http')!==0)u='https://'+u;
+var h2=jinaHead();
+h2['X-Retain-Images']='none';
+var r2=await webFetch('https://r.jina.ai/'+u,h2,45000);
+if(!r2.ok)return'[网页] 打不开：'+String(r2.t).slice(0,110)+webHint(r2.t)+
+'\n\n只能用搜索摘要里的信息。别替这个页面编内容。';
+var t2=String(r2.t).replace(/\n{3,}/g,'\n\n').trim();
+if(!t2)return'[网页] 这一页没有正文。换一条。';
+if(t2.length>7000)t2=t2.slice(0,7000)+'\n…（后面截断了）';
+return'[网页] '+u+'：\n\n'+t2}
+var rr=await _etaBase(n,i);
+if(typeof rr==='string'&&rr.indexOf('失败：图片已不在')===0){
+return'失败：这张图已经不在了（可能被清理过）。别猜里面是什么，跟她说图找不到了。'}
+return rr};
+
+var _tlBase=toolLabel;
+toolLabel=function(n){
+var M={web_lookup:'上网搜了搜',web_open:'打开了一个网页',
+delete_thought:'删了条碎碎念',edit_thought:'改了条碎碎念',
+delete_comment:'删了自己的评论',list_memories:'翻了翻记忆库',
+list_images:'翻了翻发过的图',restore_self:'退回了上一版的自己'};
+return M[n]||_tlBase(n)};
+
+function purgeImgs(){
+ask('每个对话只留最近 10 张图？',function(){
+var n=0;
+Object.keys(S.convs).forEach(function(id){
+var c=S.convs[id];
+if(!c||c.cold||!c.msgs)return;
+var all=[];
+c.msgs.forEach(function(m,mi){
+if(m.ik)m.ik.forEach(function(k){all.push({mi:mi,k:k})})});
+if(all.length<=10)return;
+var kill=all.slice(0,all.length-10),dead={};
+kill.forEach(function(e){
+dead[e.k]=1;
+idbDel('imgs',e.k);
+IMGC.delete(e.k);
+var m=c.msgs[e.mi];
+if(m&&m.ik){
+m.ik=m.ik.filter(function(y){return y!==e.k});
+if(!m.ik.length){delete m.ik;m.imgGone=true}}
+n++});
+if(c.api){
+c.api.forEach(function(am,ai){
+if(!Array.isArray(am.content))return;
+var ch=false,nc=[];
+am.content.forEach(function(b){
+if(b.type==='image'&&b._k&&dead[b._k]){
+nc.push({type:'text',text:'[这张图已被清理]'});ch=true}
+else{nc.push(b)}});
+if(ch)c.api[ai]={role:am.role,content:nc}})}});
+saveNow();renderMs();refreshUse();
+toast('清掉了 '+n+' 张\nAPI 历史里的引用也一起处理了')},true)}
 
 /* ════ 6 界面 ════ */
 if(S.dFilter===undefined)S.dFilter='all';
@@ -3677,7 +3866,13 @@ st.textContent=
 '.dseg{display:flex;background:var(--bg3);border-radius:9px;padding:3px;margin-bottom:12px}'+
 '.dseg button{flex:1;padding:6px 0;background:none;border:none;border-radius:7px;font-size:13px;color:var(--tx2);cursor:pointer}'+
 '.dseg button.on{background:var(--card);color:var(--tx);font-weight:600;box-shadow:var(--sh)}'+
-'.pinbadge{font-size:9px;color:var(--ac);background:var(--acl);border-radius:4px;padding:0 4px;margin-left:4px;font-weight:600}';
+'.pinbadge{font-size:9px;color:var(--ac);background:var(--acl);border-radius:4px;padding:0 4px;margin-left:4px;font-weight:600}'+
+'#ca{will-change:scroll-position;transform:translateZ(0)}'+
+'#msgs{contain:layout style}'+
+'.msg{transition:none}'+
+'.msg.jump{transition:background .4s}'+
+'.bub{contain:content}'+
+'.msg-lazy .shell-pv{contain:strict;height:34px}';
 document.head.appendChild(st)})();
 
 function diaStream(){
@@ -3738,14 +3933,16 @@ if(dc)dc.textContent=q?(list.length+'条'):'';
 var head='';
 if(!q){
 head+='<div class="dseg">'+
-'<button class="'+(F==='all'?'on':'')+'" onclick="setDFilter(\'all\')">全部</button>'+
-'<button class="'+(F==='d'?'on':'')+'" onclick="setDFilter(\'d\')">日记</button>'+
-'<button class="'+(F==='n'?'on':'')+'" onclick="setDFilter(\'n\')">碎碎念</button>'+
-'<button class="'+(F==='t'?'on':'')+'" onclick="setDFilter(\'t\')">节点</button>'+
+'<button class="'+((F==='all')?'on':'')+'" onclick="setDFilter(\'all\')">全部</button>'+
+'<button class="'+((F==='d')?'on':'')+'" onclick="setDFilter(\'d\')">日记</button>'+
+'<button class="'+((F==='n')?'on':'')+'" onclick="setDFilter(\'n\')">碎碎念</button>'+
+'<button class="'+((F==='t')?'on':'')+'" onclick="setDFilter(\'t\')">节点</button>'+
 '</div>';
 if(F==='all'||F==='n'){
 head+='<div class="qnote"><input id="qni" placeholder="丢一句就跑…" '+
-'onkeydown="if(event.key===\'Enter\')quickNote()"><button onclick="quickNote()">写下</button></div>'}}
+'onkeydown="if(event.key===\'Enter\')quickNote()"><button onclick="quickNote()">写下</button></div>'}
+if(F==='t'){
+head+='<button class="dadd" style="margin:0 0 14px" onclick="addMile()">＋ 记一个节点</button>'}}
 if(!list.length){
 var em='还什么都没有<br>随手写一句，或者点右上角 ＋ 写篇日记';
 if(q)em='没有匹配<br><br>空格分词、日期写 3.15';
@@ -3758,12 +3955,13 @@ var dt=new Date(e.ts),mk=dt.getFullYear()+' 年 '+(dt.getMonth()+1)+' 月';
 if(mk!==curM&&!q){curM=mk;h+='<div class="mgrp">'+mk+'</div>'}
 if(e.k==='t'){
 var tl=e.o;
-h+='<div class="dtl"><span class="tx">'+esc(tl.when)+'　<span class="mc-id">L'+tl.n+'</span></span><span class="ln"></span>';
+h+='<div class="dtl"><span class="tx">'+esc(tl.when)+
+'　<span class="mc-id">L'+tl.n+'</span></span><span class="ln"></span>';
 if(tl.ref)h+='<button class="go" onclick="jumpMsg(\''+tl.ref.cid+'\','+tl.ref.i+')">回到那里</button>';
 h+='<button class="go" onclick="editMile('+tl.n+')">改</button>'+
 '<button class="go" onclick="delMile('+tl.n+')">删</button></div>';
 h+='<div class="dtlw">'+esc(tl.what)+
-(tl.by==='ai'?'<br><span style="font-size:11px;color:var(--tx3)">他记的</span>':'')+'</div>';
+((tl.by==='ai')?'<br><span style="font-size:11px;color:var(--tx3)">他记的</span>':'')+'</div>';
 return}
 if(e.k==='n'){
 var o=e.o,mine=e.mine,pre=mine?'T':'A';
@@ -3778,8 +3976,9 @@ h+='</div></div><div class="dc-body">'+esc(o.content)+'</div>';
 if(o.replies&&o.replies.length){
 h+='<div class="dc-cmts">';
 o.replies.forEach(function(rp){
-h+='<div class="cmt"><div class="cmt-hd"><span class="cmt-name'+(rp.author==='user'?' me':'')+'">'+
-(rp.author==='user'?un:an)+'</span></div><div class="cmt-body">'+esc(rp.content)+'</div></div>'});
+h+='<div class="cmt"><div class="cmt-hd"><span class="cmt-name'+
+((rp.author==='user')?' me':'')+'">'+((rp.author==='user')?un:an)+
+'</span></div><div class="cmt-body">'+esc(rp.content)+'</div></div>'});
 h+='</div>'}
 h+='</div>';
 return}
@@ -3791,7 +3990,7 @@ h+='<div class="dc'+(d.star?' star':'')+'"><div class="dc-hd"><div class="dc-who
 if(isMe)h+='<button onclick="editDiary('+d.n+')">编辑</button>';
 h+='<button onclick="delDiary('+d.n+')">删除</button></div></div>';
 if(d.ik&&d.ik.length){
-h+='<div class="dc-imgs'+(d.ik.length>1?' multi':'')+'">';
+h+='<div class="dc-imgs'+((d.ik.length>1)?' multi':'')+'">';
 d.ik.forEach(function(kk){h+='<img data-k="'+kk+'" onclick="if(this.src)lb(this.src)">'});
 h+='</div>'}
 if(d.content)h+='<div class="dc-body">'+esc(d.content)+'</div>';
@@ -3832,15 +4031,16 @@ if(x.tag){if(!byTag[x.tag])byTag[x.tag]=[];byTag[x.tag].push(x)}
 else{noTag.push(x)}});
 function card(x){
 var d=document.createElement('div');
-d.className='mc'+(x.locked?' locked':'')+(x.arch?' arch':'')+(x.sure==='inferred'?' inferred':'');
+d.className='mc'+(x.locked?' locked':'')+(x.arch?' arch':'')+
+((x.sure==='inferred')?' inferred':'');
 var dt=x.createdAt?new Date(x.createdAt).toLocaleDateString('zh-CN'):'';
 d.innerHTML='<div class="mc-body">'+esc(x.content)+'</div><div class="mc-ft"><span>'+
 '<span class="mc-id">M'+x.n+'</span> '+
-(x.tag?'<span class="mc-tag">'+esc(x.tag)+'</span>':'')+
-(x.sure==='inferred'?'<span class="mc-sure">推断</span>':'')+
+(x.tag?('<span class="mc-tag">'+esc(x.tag)+'</span>'):'')+
+((x.sure==='inferred')?'<span class="mc-sure">推断</span>':'')+
 dt+(x.arch?' <span class="archmk">抽屉里</span>':'')+'</span>'+
 '<div class="mc-acts">'+
-(x.sure==='inferred'?'<button onclick="confirmMem('+x.n+')">确认</button>':'')+
+((x.sure==='inferred')?('<button onclick="confirmMem('+x.n+')">确认</button>'):'')+
 '<button class="lk" onclick="tgLock('+x.n+')">'+(x.locked?'锁定':'未锁')+'</button>'+
 '<button onclick="tgArch('+x.n+')">'+(x.arch?'放回':'收起')+'</button>'+
 '<button onclick="editMem('+x.n+')" '+(x.locked?'disabled':'')+'>编辑</button>'+
@@ -3860,23 +4060,20 @@ t2.textContent='未分组　'+noTag.length+' 条';
 l.appendChild(t2)}
 noTag.slice().reverse().forEach(function(x){l.appendChild(card(x))})}}
 
+/* 时间线和碎碎念都只在日记页，「我们」页给入口 */
 function rTimeline(){
 var b=document.getElementById('tlBody');
 if(!b)return;
-b.innerHTML='';
-if(!S.timeline.length){
-b.innerHTML='<div class="hint-empty" style="padding:24px">还没有节点<br><br>他觉得某一刻是转折时会记下来</div>';
-return}
-S.timeline.forEach(function(t){
-var d=document.createElement('div');
-d.className='tli';
-var h='<div class="tli-w">'+esc(t.when)+'　<span class="mc-id">L'+t.n+'</span>'+
-(t.by==='ai'?'　· 他记的':'')+'</div><div class="tli-b">'+esc(t.what)+'</div><div class="tli-f">';
-if(t.ref)h+='<button onclick="jumpMsg(\''+t.ref.cid+'\','+t.ref.i+')">回到那里</button>';
-h+='<button onclick="editMile('+t.n+')">改</button>'+
-'<button onclick="delMile('+t.n+')">删</button></div>';
-d.innerHTML=h;
-b.appendChild(d)})}
+var n=S.timeline.length;
+b.innerHTML='<div class="hint-empty" style="padding:16px;font-size:13px">'+
+(n?(n+' 个节点，都在日记页'):'还没有节点<br><span style="font-size:11px">他觉得某一刻是转折时会记下来</span>')+
+'<br><br><button class="new-btn" style="width:auto;padding:8px 20px" '+
+'onclick="go(\'diary\');setDFilter(\'t\')">去看</button></div>';
+var blk=b.parentElement;
+while(blk&&blk.className!=='blk')blk=blk.parentElement;
+if(blk){
+var a=blk.querySelector('.blk-a');
+if(a&&a.parentNode)a.parentNode.removeChild(a)}}
 
 function rThList(elId,arr,mine){
 var box=document.getElementById(elId);
@@ -3898,8 +4095,8 @@ var tt=document.querySelectorAll('#pg-both .blk-t'),i,tx;
 for(i=0;i<tt.length;i++){
 tx=tt[i].textContent||'';
 if(tx.indexOf('时间线')===0)tt[i].innerHTML='时间线<span class="pinbadge">'+S.timeline.length+'</span>';
-if(tx.indexOf('一直带着的')===0)tt[i].innerHTML='一直带着的<span class="pinbadge">'+
-  pins+'</span>'}};
+if(tx.indexOf('一直带着的')===0)tt[i].innerHTML='一直带着的<span class="pinbadge">'+pins+'</span>'}
+if(S.tab==='diary')rDiary()};
 
 var _rtBase=renderTitle;
 renderTitle=function(){
@@ -3908,7 +4105,7 @@ var cv=S.convs[S.cur],sub=document.getElementById('hdSub');
 if(!sub||!cv||!cv.msgs)return;
 var p=0;
 cv.msgs.forEach(function(m){if(m.pin&&!m.err)p++});
-if(p)sub.innerHTML=(sub.innerHTML?sub.innerHTML+' · ':'')+'<b>'+p+' 钉</b>'};
+if(p)sub.innerHTML=(sub.innerHTML?(sub.innerHTML+' · '):'')+'<b>'+p+' 钉</b>'};
 
 function openFixMenu(){
 var cv=S.convs[S.cur];
@@ -3916,10 +4113,11 @@ var ck=cv?alignCheck(cv):null;
 var bad=badCount();
 var h='';
 h+='<button class="ami" onclick="closeAm();fixConv()">修复当前对话'+
-(ck?(ck.ok?'（正常）':'（错位 '+ck.m+'/'+ck.a+'）'):'')+'</button>';
+(ck?(ck.ok?'（正常）':('（错位 '+ck.m+'/'+ck.a+'）')):'')+'</button>';
 h+='<button class="ami" onclick="closeAm();fixAll()">扫描并修复全部'+
 (bad?('（'+bad+' 个错位）'):'')+'</button>';
-h+='<button class="ami'+((ck&&!ck.ok)?' dan':'')+'" onclick="closeAm();deepAlign()">深度对齐当前对话</button>';
+h+='<button class="ami'+((ck&&!ck.ok)?' dan':'')+
+'" onclick="closeAm();deepAlign()">深度对齐当前对话</button>';
 h+='<button class="ami" onclick="closeAm();showToolLog()">他动过什么（工具记录）</button>';
 h+='<button class="ami" onclick="closeAm()">取消</button>';
 document.getElementById('amSheet').innerHTML=h;
@@ -3930,12 +4128,13 @@ var cv=S.convs[S.cur];
 if(!cv)return;
 var ck=alignCheck(cv);
 var h='';
-h+='<button class="ami" onclick="closeAm();go(\'us\');segTo(\'both\')">常驻区 · 时间线</button>';
+h+='<button class="ami" onclick="closeAm();go(\'us\');segTo(\'both\')">常驻区</button>';
 h+='<button class="ami" onclick="closeAm();editTitle(\''+S.cur+'\')">改标题</button>';
 h+='<button class="ami" onclick="copyConv()">复制整段对话</button>';
 h+='<button class="ami" onclick="exportConv()">单独导出</button>';
 h+='<button class="ami" onclick="closeAm();showToolLog()">他动过什么（工具记录）</button>';
-h+='<button class="ami" onclick="closeAm();fixConv()">修复对话'+((ck&&!ck.ok)?'（发现错位）':'')+'</button>';
+h+='<button class="ami" onclick="closeAm();fixConv()">修复对话'+
+((ck&&!ck.ok)?'（发现错位）':'')+'</button>';
 h+='<button class="ami'+((ck&&!ck.ok)?' dan':'')+'" onclick="closeAm();deepAlign()">深度对齐'+
 (ck?('（屏幕 '+ck.m+' / 历史 '+ck.a+'）'):'')+'</button>';
 h+='<button class="ami" onclick="closeAm()">取消</button>';
@@ -3962,6 +4161,230 @@ var e=document.getElementById('sjk');
 if(e)S.sets.jinaKey=e.value.trim();
 _ssBase()};
 
+/* ════ 7 性能 ════ */
+var ANCHQ=0;
+function updAnchor(){
+if(ANCHQ)return;
+ANCHQ=1;
+requestAnimationFrame(function(){
+ANCHQ=0;
+var ca=document.getElementById('ca');
+if(!ca)return;
+if(ca.scrollHeight-ca.scrollTop-ca.clientHeight<40){ANCH=null;return}
+var st=ca.scrollTop,box=document.getElementById('msgs');
+if(!box||!box.children.length)return;
+var els=box.children,lo=0,hi=els.length-1,mid,el;
+while(lo<hi){
+mid=(lo+hi)>>1;
+el=els[mid];
+if(el.offsetTop+el.offsetHeight>st){hi=mid}else{lo=mid+1}}
+el=els[lo];
+if(el){ANCH=el;ANCHOFF=el.offsetTop-st}
+else{ANCH=null}})}
+
+var DRIFTQ=0;
+function fixDrift(){
+if(DRIFTQ)return;
+DRIFTQ=1;
+requestAnimationFrame(function(){
+DRIFTQ=0;
+var ca=document.getElementById('ca');
+if(!ca)return;
+if(ANCH&&!ANCH.isConnected){ANCH=null;return}
+if(!ANCH)return;
+if(ca.scrollHeight-ca.scrollTop-ca.clientHeight<40)return;
+var d=(ANCH.offsetTop-ca.scrollTop)-ANCHOFF;
+if(Math.abs(d)>1)ca.scrollBy(0,d)})}
+
+function applyFold(wrap){
+if(!S.sets.fold||!wrap)return;
+var ks=wrap.children,i,b,n,est,btn;
+for(i=0;i<ks.length;i++){
+b=ks[i];
+if(b.dataset.fd)continue;
+n=(b._raw!==undefined)?String(b._raw).length:(b.textContent||'').length;
+est=Math.ceil(n/26)*25+(String(b.innerHTML||'').split('<br>').length-1)*10;
+if(est>430){
+b.classList.add('fold');
+b.dataset.fd='1';
+btn=document.createElement('button');
+btn.className='unfold';
+btn.textContent='展开全文';
+btn.onclick=function(e){
+e.stopPropagation();
+var t=this.previousElementSibling;
+if(t)t.classList.remove('fold');
+this.remove()};
+if(b.parentNode)b.parentNode.insertBefore(btn,b.nextSibling)}
+else{b.dataset.fd='0'}}}
+
+var _mkBase=mkDOM;
+mkDOM=function(m,idx,cv){
+var d=_mkBase(m,idx,cv);
+if(!d)return d;
+var w=d.querySelector('.bubs');
+if(w)applyFold(w);
+var im=d.querySelectorAll('img'),i;
+for(i=0;i<im.length;i++){
+im[i].decoding='async';
+im[i].loading='lazy'}
+return d};
+
+function mkShell(m,idx){
+if(m.role==='sys'){
+var s=document.createElement('div');
+s.className='sysline';
+s.dataset.i=idx;
+s.textContent=m.text;
+return s}
+var d=document.createElement('div');
+d.className='msg msg-lazy '+((m.role==='user')?'u':'a')+(m.pin?' pinned':'');
+d.dataset.i=idx;
+var tl=String(m.text||'').length;
+var est=46+Math.min(560,Math.ceil(tl/26)*22);
+if(m.ik&&m.ik.length)est+=((m.ik.length===1)?210:112);
+if(m.thinking)est+=34;
+d.style.containIntrinsicSize='auto '+est+'px';
+var h='';
+if(m.ik&&m.ik.length)h+='<div class="shell-img">['+m.ik.length+' 张图]</div>';
+else if(m.imgGone)h+='<div class="shell-img">[图片已清理]</div>';
+var pv=String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' ').slice(0,100);
+if(!pv&&m.err)pv='[出错了]';
+if(!pv&&m.ik)pv='[图片]';
+h+='<div class="shell-pv">'+esc(pv||'…')+'</div>';
+d.innerHTML=h;
+if(HYDRATOR)HYDRATOR.observe(d);
+return d}
+
+var HYQ=[],HYT=0;
+var RIC=window.requestIdleCallback||function(f){
+return setTimeout(function(){f({timeRemaining:function(){return 8}})},1)};
+
+function hyStep(dl){
+HYT=0;
+var cv=S.convs[S.cur],el,idx,full,hOld;
+while(HYQ.length&&(!dl||dl.timeRemaining()>4)){
+el=HYQ.shift();
+if(!el||!el.isConnected)continue;
+idx=parseInt(el.dataset.i);
+if(!cv||!cv.msgs||!cv.msgs[idx])continue;
+hOld=el.offsetHeight;
+full=mkDOM(cv.msgs[idx],idx,cv);
+if(!full)continue;
+if(hOld>0)full.style.containIntrinsicSize='auto '+hOld+'px';
+if(ANCH===el)ANCH=full;
+el.replaceWith(full);
+if(HOB){try{HOB.observe(full)}catch(x){}}
+if(IMGOBS)lazyImgsIn(full)}
+if(HYQ.length&&!HYT)HYT=RIC(hyStep)}
+
+function initHydrator(){
+if(HYDRATOR)return;
+HYDRATOR=new IntersectionObserver(function(es){
+var i;
+for(i=0;i<es.length;i++){
+if(!es[i].isIntersecting)continue;
+HYDRATOR.unobserve(es[i].target);
+HYQ.push(es[i].target)}
+if(HYQ.length&&!HYT)HYT=RIC(hyStep)},{rootMargin:'1200px 0px'})}
+
+function initImgObs(){
+if(IMGOBS)return;
+IMGOBS=new IntersectionObserver(function(es){
+var i;
+for(i=0;i<es.length;i++){
+if(!es[i].isIntersecting)continue;
+var im=es[i].target,k=im.getAttribute('data-k');
+IMGOBS.unobserve(im);
+if(!k)continue;
+(function(el,key){
+getImg(key).then(function(d){
+if(!d){
+if(el.parentNode){
+var s=document.createElement('span');
+s.className='imgmiss';
+s.textContent='图片已不在';
+el.parentNode.replaceChild(s,el)}
+return}
+RIC(function(){
+el.decoding='async';
+el.src=d;
+el.removeAttribute('data-k')})})})(im,k)}
+},{rootMargin:'400px 0px'})}
+
+function initHOB(){
+if(typeof ResizeObserver==='undefined')return;
+HOB=new ResizeObserver(function(es){
+var i,e,el,h;
+for(i=0;i<es.length;i++){
+e=es[i];el=e.target;
+h=Math.round((e.borderBoxSize&&e.borderBoxSize[0]?e.borderBoxSize[0].blockSize:0)||el.offsetHeight);
+if(h>0)el.style.containIntrinsicSize='auto '+h+'px'}
+fixDrift()})}
+
+function jumpMsg(cid,idx){
+if(S.convs[cid]&&S.convs[cid].cold){
+toast('正在取回…');
+warmOne(cid).then(function(ok){if(ok){renderCL();jumpMsg(cid,idx)}});
+return}
+if(S.cur!==cid)switchC(cid,true);
+go('chat');
+if(PINSTOP)PINSTOP();
+setTimeout(function(){
+var el=document.querySelector('#msgs [data-i="'+idx+'"]');
+if(!el)return;
+if(el.classList.contains('msg-lazy')){
+var cv=S.convs[S.cur];
+if(cv&&cv.msgs&&cv.msgs[idx]){
+if(HYDRATOR){try{HYDRATOR.unobserve(el)}catch(x){}}
+var full=mkDOM(cv.msgs[idx],idx,cv);
+if(full){
+el.replaceWith(full);
+if(HOB){try{HOB.observe(full)}catch(x){}}
+eagerImgsIn(full);
+el=full}}}
+el.scrollIntoView({block:'center'});
+el.classList.add('jump');
+setTimeout(function(){el.classList.remove('jump')},1800)},300)}
+
+var MDC=new Map();
+var _mdBase=md;
+md=function(t){
+if(!t)return'';
+var s=String(t);
+if(s.length>2400)return _mdBase(s);
+var hit=MDC.get(s);
+if(hit!==undefined)return hit;
+var out=_mdBase(s);
+MDC.set(s,out);
+if(MDC.size>700){
+var it=MDC.keys(),i,kk;
+for(i=0;i<200;i++){kk=it.next();if(kk.done)break;MDC.delete(kk.value)}}
+return out};
+
+(function(){
+var can=false;
+function scrollable(t){
+var n=t;
+while(n&&n!==document.body&&n.nodeType===1){
+if(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName))return true;
+var cs;
+try{cs=getComputedStyle(n)}catch(e){return true}
+if((n.scrollHeight>n.clientHeight+1&&/(auto|scroll)/.test(cs.overflowY))||
+(n.scrollWidth>n.clientWidth+1&&/(auto|scroll)/.test(cs.overflowX)))return true;
+n=n.parentElement}
+return false}
+document.addEventListener('touchstart',function(e){
+if(!S.sets.noDrag){can=true;return}
+if(e.touches&&e.touches.length>1){can=true;return}
+can=scrollable(e.target)},{passive:true,capture:true});
+document.addEventListener('touchmove',function(e){
+if(!S.sets.noDrag)return;
+if(can)return;
+if(e.touches&&e.touches.length>1)return;
+e.preventDefault()},{passive:false})})();
+
+/* ════ 启动收尾 ════ */
 setTimeout(function(){
 var box=document.querySelector('#subApi .body-scroll');
 if(box&&!document.getElementById('swb')){
@@ -3990,525 +4413,10 @@ if(e2)e2.placeholder='搜记忆…空格分词、3.15';
 var e3=document.getElementById('sinp');
 if(e3&&!S.globalSearch)e3.placeholder='搜索当前对话…';
 loadSU();refreshSetList();
-rUs();rMems();rDiary()},600);
 
-if(!localStorage.getItem('fw_tipclean')){
-setTimeout(function(){
-var n=stripTips();
-try{localStorage.setItem('fw_tipclean','1')}catch(e){}
-if(n)toast('清掉了 '+n+' 条写进历史的工具提示')},1500)}
-  
-/* ═══════════ v18.3：图片找得回来 ═══════════ */
-
-/* ── 折叠占位改用图片 key，永不错位 ── */
-function buildApiMs(cv){
-var api=(cv&&cv.api)||[],n=api.length,i,j,k,b,m;
-var turns=parseInt(S.sets.ctxTurns);
-if(isNaN(turns)||turns<=0)turns=20;
-var imgT=parseInt(S.sets.imgTurns);
-if(isNaN(imgT)||imgT<0)imgT=3;
-var cu=[];
-for(i=0;i<n;i++){if(isCleanUser(api[i]))cu.push(i)}
-var start=(cu.length>turns)?cu[cu.length-turns]:0;
-var imgStart=(cu.length>imgT)?cu[cu.length-imgT]:0;
-var out=[];
-for(i=start;i<n;i++){
-m=api[i];
-var isTR=(m.role==='user'&&Array.isArray(m.content)&&m.content[0]&&m.content[0].type==='tool_result');
-if(isTR){out.push(m);continue}
-if(m.role==='user'&&Array.isArray(m.content)){
-var hasImg=false;
-for(j=0;j<m.content.length;j++){if(m.content[j].type==='image')hasImg=true}
-if(hasImg){
-var nc=[];
-for(j=0;j<m.content.length;j++){
-b=m.content[j];
-if(b.type==='image'){
-if(i<imgStart){
-nc.push({type:'text',text:'[有张图，折叠了。ref='+(b._k||'?')+'　要看就 recall_image(ref="…")]'})}
-else{nc.push(b)}}
-else{nc.push(b)}}
-out.push({role:'user',content:nc});continue}}
-if(m.role==='assistant'&&Array.isArray(m.content)){
-var f=[];
-for(j=0;j<m.content.length;j++){
-var ty=m.content[j].type;
-if(ty!=='thinking'&&ty!=='redacted_thinking')f.push(m.content[j])}
-if(!f.length)f=[{type:'text',text:'…'}];
-out.push({role:'assistant',content:f});continue}
-out.push(m)}
-out=sanitize(out);
-if(!out.length)return out;
-var stop=Math.max(0,out.length-3);
-for(i=0;i<stop;i++){
-m=out[i];
-if(m.role!=='user'||!Array.isArray(m.content))continue;
-if(!m.content[0]||m.content[0].type!=='tool_result')continue;
-var ch=false,c2=[];
-for(j=0;j<m.content.length;j++){
-b=m.content[j];
-if(b.type==='tool_result'&&typeof b.content==='string'&&b.content.indexOf('[网页]')===0){
-c2.push({type:'tool_result',tool_use_id:b.tool_use_id,
-content:b.content.slice(0,50).replace(/\n/g,' ')+'…（网页内容已折叠，要看就再搜）'});
-ch=true}
-else if(b.type==='tool_result'&&Array.isArray(b.content)){
-var inn=[];
-for(k=0;k<b.content.length;k++){
-if(b.content[k].type==='image'){inn.push({type:'text',text:'[取回的图已折叠，需要就再 recall 一次]'});ch=true}
-else{inn.push(b.content[k])}}
-c2.push({type:'tool_result',tool_use_id:b.tool_use_id,content:inn})}
-else{c2.push(b)}}
-if(ch)out[i]={role:'user',content:c2}}
-var last=out[out.length-1];
-if(!last||last.role!=='user'||!Array.isArray(last.content))return out;
-if(!last.content.length||last.content[0].type!=='tool_result')return out;
-var un=S.sets.userName||'小u',recent='',t;
-for(i=out.length-2;i>=0;i--){
-m=out[i];
-if(!isCleanUser(m))continue;
-t='';
-if(typeof m.content==='string'){t=m.content}
-else if(Array.isArray(m.content)){
-for(j=0;j<m.content.length;j++){
-if(m.content[j].type==='text')t+=m.content[j].text}}
-t=String(t).replace(/\s+/g,' ').replace(/^\s+/,'');
-if(!t)continue;
-if(t.indexOf('[系统提示')===0)continue;
-recent=t.slice(0,180);break}
-if(!recent)return out;
-var arr=last.content.slice();
-arr.push({type:'text',text:'[工具执行完了]\n\n'+un+'刚才说的是：\n'+recent+
-'\n\n现在回她这句话。不要提用了什么工具。记得拆气泡。'});
-out[out.length-1]={role:'user',content:arr};
-return out}
-
-/* ── 全库图片清单 ── */
-function allImgs(){
-var out=[],un=S.sets.userName||'小u',an=S.sets.aiName||'Renn';
-Object.keys(S.convs).forEach(function(cid){
-var c=S.convs[cid];
-if(!c||c.cold||!c.msgs)return;
-c.msgs.forEach(function(m,mi){
-if(!m.ik||!m.ik.length)return;
-m.ik.forEach(function(k){
-out.push({k:k,ts:m.ts||0,where:'对话「'+(c.title||'对话')+'」',
-who:(m.role==='user'?un:an),
-text:String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' '),
-cid:cid,mi:mi})})})});
-S.diary.forEach(function(d){
-if(!d.ik||!d.ik.length)return;
-d.ik.forEach(function(k){
-out.push({k:k,ts:d.ts||0,where:'日记 D'+d.n,
-who:(d.author==='user'?un:an),
-text:String(d.content||'').replace(/\s+/g,' ')})})});
-out.sort(function(a,b){return b.ts-a.ts});
-return out}
-
-TOOLS.push({name:'list_images',description:'列出发过的图片，给出每张的 ref 和当时说的话。只发图没打字的消息 search 搜不到，想找旧图就用这个。拿到 ref 再用 recall_image 看。',
-input_schema:{type:'object',properties:{
-date:{type:'string',description:'只看某天，写 3.15 / 3月15日 / 今天 / 昨天。可空'},
-limit:{type:'integer',description:'默认 20'}},required:[]}});
-
-(function(){
-var i;
-for(i=0;i<TOOLS.length;i++){
-if(TOOLS[i].name==='recall_image'){
-TOOLS[i].description='取回一张折叠的图。ref 填折叠提示里给的那一串，或者 list_images 列出来的。跨对话也能取。';
-TOOLS[i].input_schema={type:'object',properties:{
-ref:{type:'string',description:'图片的 ref，形如 im1a2b3c'},
-index:{type:'integer',description:'老式序号，能用 ref 就别用这个'}},required:[]}}}})();
-
-var _etImg=execTool;
-execTool=function(n,i){
-var r;
-i=i||{};
-
-if(n==='list_images'){
-var arr=allImgs();
-var lim=parseInt(i.limit);
-if(isNaN(lim)||lim<1)lim=20;
-if(lim>60)lim=60;
-if(i.date){
-var Q=qSplit(String(i.date));
-if(Q&&Q.ds.length){
-arr=arr.filter(function(x){return dateOK(x.ts,Q.ds)})}}
-if(!arr.length){
-r=i.date?('那天没有图片。全库一共 '+allImgs().length+' 张。'):'一张图都没有。'}
-else{
-var o='共 '+arr.length+' 张'+(arr.length>lim?('，列最近 '+lim+' 张'):'')+'：\n\n';
-arr.slice(0,lim).forEach(function(x){
-o+='ref='+x.k+'\n'+fmtFull(x.ts)+'　'+x.where+'　'+x.who+'\n';
-o+=x.text?('当时说：'+x.text.slice(0,60)+(x.text.length>60?'…':'')+'\n\n'):'（只发了图，没打字）\n\n'});
-o+='———\n想看哪张就 recall_image(ref="…")。一次别取太多，图很占地方。';
-r=o}
-logTool(n,i,r);return r}
-
-if(n==='recall_image'){
-var ref=String(i.ref||'').trim();
-if(ref){
-if(ref.indexOf('im')!==0){
-var mm=ref.match(/im[0-9a-z]+/i);
-if(mm)ref=mm[0]}
-r='PENDING:'+ref;
-logTool(n,i,'取回 ref='+ref);
-return r}
-var idx=parseInt(i.index);
-if(isNaN(idx)){
-r='失败：没给 ref。用 list_images 看一眼有哪些图，它会给出每张的 ref。';
-logTool(n,i,r);return r}
-var cv=S.convs[S.cur],ks=[];
-if(cv&&cv.msgs){
-cv.msgs.forEach(function(m){if(m.ik)m.ik.forEach(function(k){ks.push(k)})})}
-if(!ks[idx]){
-r='失败：这个对话只有 '+ks.length+' 张图，没有第 '+idx+' 张。用 list_images 拿准确的 ref。';
-logTool(n,i,r);return r}
-r='PENDING:'+ks[idx];
-logTool(n,i,'取回 index='+idx);
-return r}
-
-return _etImg(n,i)};
-
-var _etaImg=execToolAsync;
-execToolAsync=async function(n,i){
-var r=await _etaImg(n,i);
-if(typeof r==='string'&&r.indexOf('失败：图片已不在')===0){
-return'失败：这张图已经不在了（可能被清理过）。别猜里面是什么，跟她说图找不到了。'}
-return r};
-
-/* ── 搜索结果标出有图 ── */
-var _dsaImg=doSearchAll;
-doSearchAll=function(q,lim,scope){
-var rs=_dsaImg(q,lim,scope),i,r,c,m;
-for(i=0;i<rs.length;i++){
-r=rs[i];
-if(!r.loc)continue;
-c=S.convs[r.loc.cid];
-if(!c||!c.msgs)continue;
-m=c.msgs[r.loc.i];
-if(m&&m.ik&&m.ik.length){
-r.head=r.head.replace(/】$/,'｜'+m.ik.length+' 张图 ref='+m.ik.join(' ')+'】')}}
-return rs};
-
-/* ── 清理旧图时同步 api，不留死引用 ── */
-function purgeImgs(){
-ask('每个对话只留最近 10 张图？',function(){
-var n=0;
-Object.keys(S.convs).forEach(function(id){
-var c=S.convs[id];
-if(!c||c.cold||!c.msgs)return;
-var all=[];
-c.msgs.forEach(function(m,mi){
-if(m.ik)m.ik.forEach(function(k){all.push({mi:mi,k:k})})});
-if(all.length<=10)return;
-var kill=all.slice(0,all.length-10),dead={};
-kill.forEach(function(e){
-dead[e.k]=1;
-idbDel('imgs',e.k);
-IMGC.delete(e.k);
-var m=c.msgs[e.mi];
-if(m&&m.ik){
-m.ik=m.ik.filter(function(x){return x!==e.k});
-if(!m.ik.length){delete m.ik;m.imgGone=true}}
-n++});
-if(c.api){
-c.api.forEach(function(am,ai){
-if(!Array.isArray(am.content))return;
-var ch=false,nc=[];
-am.content.forEach(function(b){
-if(b.type==='image'&&b._k&&dead[b._k]){
-nc.push({type:'text',text:'[这张图已被清理]'});ch=true}
-else{nc.push(b)}});
-if(ch)c.api[ai]={role:am.role,content:nc}})}});
-saveNow();renderMs();refreshUse();
-toast('清掉了 '+n+' 张\nAPI 历史里的引用也一起处理了')},true)}
-
-/* ── 提示词 ── */
-var _bsImg=buildStatic;
-buildStatic=function(){
-var s=_bsImg();
-if(!S.sets.tools)return s;
-var L=[];
-L.push('[图片]');
-L.push('超过图片轮数的图会折叠成一行 ref=xxx。想看就 recall_image(ref="xxx")。');
-L.push('ref 是图片自己的编号，跨对话也认，永远不会指错。');
-L.push('');
-L.push('只发图没打字的消息，search 搜不到——因为没有文字可搜。');
-L.push('她说「之前发的那张图」而你上下文里没有，用 list_images 找。');
-L.push('能按日期筛：list_images(date="3.15")。');
-L.push('');
-L.push('没真取回来之前，不要描述图里有什么。');
-L.push('取不回来就说图找不到了，别编。');
-return s+'\n\n'+L.join('\n')};
-
-var _tlImg=toolLabel;
-toolLabel=function(n){
-if(n==='list_images')return'翻了翻发过的图';
-return _tlImg(n)};
-
-/* ═══════════ v18.3 追加：前后文 + 滚动 ═══════════ */
-
-/* ── read_around：认各种 ref，冷存自动取回 ── */
-var _etRA=execTool;
-execTool=function(n,i){
-i=i||{};
-if(n!=='read_around')return _etRA(n,i);
-var raw=String(i.ref||'').trim(),r;
-if(!raw){
-r='失败：没给 ref。搜索结果里每条对话后面都有一行 ref=…，把它填进来。';
-logTool(n,i,r);return r}
-var mm=raw.match(/([0-9]{10,})\s*[:：]\s*(\d+)/);
-var cid=null,idx=-1;
-if(mm){cid=mm[1];idx=parseInt(mm[2])}
-else{
-var p=raw.split(/[:：]/);
-if(p.length>=2){cid=p[0].trim();idx=parseInt(p[1])}}
-if(!cid||isNaN(idx)){
-r='失败：ref 看不懂（「'+raw.slice(0,40)+'」）。正确的样子是 ref=1756... : 12，直接抄搜索结果里那一行。';
-logTool(n,i,r);return r}
-var c=S.convs[cid];
-if(!c){
-r='失败：那个对话不在了。';
-logTool(n,i,r);return r}
-if(c.cold){
-warmOne(cid).then(function(ok){if(ok){renderCL();toast('已取回冷存对话')}});
-r='「'+(c.title||'对话')+'」在冷存里，正在取回。下一轮再 read_around 同一个 ref 就能读到了。';
-logTool(n,i,r);return r}
-if(!c.msgs||!c.msgs[idx]){
-r='失败：位置越界。「'+(c.title||'对话')+'」一共 '+((c.msgs&&c.msgs.length)||0)+' 条。';
-logTool(n,i,r);return r}
-var sp=parseInt(i.span);
-if(isNaN(sp)||sp<1)sp=5;
-if(sp>15)sp=15;
-var an=S.sets.aiName||'Renn',un=S.sets.userName||'小u';
-var before=[],after=[],k,x;
-for(k=idx-1;k>=0&&before.length<sp;k--){
-x=c.msgs[k];
-if(x&&x.role!=='sys'&&!x.err)before.unshift({m:x,i:k})}
-for(k=idx+1;k<c.msgs.length&&after.length<sp;k++){
-x=c.msgs[k];
-if(x&&x.role!=='sys'&&!x.err)after.push({m:x,i:k})}
-function line(o){
-var m=o.m,s='— '+(m.role==='user'?un:an)+'（'+fmtTs(m.ts)+'）';
-if(m.pin)s+=' 📌';
-s+='\n'+String(m.text||'').replace(/\n*\/\/\/+\n*/g,'\n');
-if(m.ik&&m.ik.length)s+='\n['+m.ik.length+' 张图 ref='+m.ik.join(' ')+']';
-if(!m.text&&!(m.ik&&m.ik.length))s+='\n（空）';
-return s+'\n\n'}
-var o='【'+(c.title||'对话')+'】前后各 '+sp+' 条\n';
-if(before.length&&before[0].i>0)o+='（上面还有 '+before[0].i+' 条）\n';
-o+='\n';
-before.forEach(function(e){o+=line(e)});
-var me=c.msgs[idx];
-o+='━━ 这一条 ━━\n'+(me.role==='user'?un:an)+'（'+fmtFull(me.ts)+'）\n'+
-String(me.text||'').replace(/\n*\/\/\/+\n*/g,'\n');
-if(me.ik&&me.ik.length)o+='\n['+me.ik.length+' 张图 ref='+me.ik.join(' ')+']';
-o+='\n━━━━━━━━\n\n';
-after.forEach(function(e){o+=line(e)});
-var tailLeft=c.msgs.length-1-(after.length?after[after.length-1].i:idx);
-if(tailLeft>0)o+='（下面还有 '+tailLeft+' 条）\n';
-o+='\n往前再翻就用 ref='+cid+':'+(before.length?before[0].i:idx)+
-'　往后用 ref='+cid+':'+(after.length?after[after.length-1].i:idx);
-logTool(n,i,'读了 '+cid+':'+idx+' 前后 '+sp);
-return o};
-
-(function(){
-var i;
-for(i=0;i<TOOLS.length;i++){
-if(TOOLS[i].name==='read_around'){
-TOOLS[i].description='展开搜索结果的前后文，看那句话前后各说了什么。ref 直接抄搜索结果里的那一行。span 是前后各几条，默认 5，最多 15。返回的末尾会给出继续往前/往后翻的 ref——想一直读下去就接着用。';
-TOOLS[i].input_schema={type:'object',properties:{
-ref:{type:'string',description:'搜索结果里给的 ref，形如 1756...:12'},
-span:{type:'integer',description:'前后各几条，默认 5'}},required:['ref']}}}})();
-
-var _bsRA=buildStatic;
-buildStatic=function(){
-var s=_bsRA();
-if(!S.sets.tools)return s;
-var L=[];
-L.push('[搜到之后]');
-L.push('search 给的是片段。只看片段容易误会当时的意思。');
-L.push('要判断她当时什么心情、那句话前后发生了什么，用 read_around 把上下文拉出来。');
-L.push('read_around 末尾会给继续翻的 ref，可以一路读下去。');
-L.push('引用一句旧话之前，先确认前后文对得上。');
-return s+'\n\n'+L.join('\n')};
-
-/* ══════ 滚动优化 ══════ */
-
-/* 1. 锚点计算改成 rAF 节流，不再每次滚动强制重排 */
-var ANCHQ=0;
-function updAnchor(){
-if(ANCHQ)return;
-ANCHQ=1;
-requestAnimationFrame(function(){
-ANCHQ=0;
 var ca=document.getElementById('ca');
-if(!ca)return;
-if(ca.scrollHeight-ca.scrollTop-ca.clientHeight<40){ANCH=null;return}
-var st=ca.scrollTop,box=document.getElementById('msgs');
-if(!box)return;
-var els=box.children,lo=0,hi=els.length-1,mid,el,top;
-while(lo<hi){
-mid=(lo+hi)>>1;
-el=els[mid];
-top=el.offsetTop+el.offsetHeight;
-if(top>st){hi=mid}else{lo=mid+1}}
-el=els[lo];
-if(el){ANCH=el;ANCHOFF=el.offsetTop-st}
-else{ANCH=null}})}
-
-var DRIFTQ=0;
-function fixDrift(){
-if(DRIFTQ)return;
-DRIFTQ=1;
-requestAnimationFrame(function(){
-DRIFTQ=0;
-var ca=document.getElementById('ca');
-if(!ca)return;
-if(ANCH&&!ANCH.isConnected){ANCH=null;return}
-if(!ANCH)return;
-if(ca.scrollHeight-ca.scrollTop-ca.clientHeight<40)return;
-var d=(ANCH.offsetTop-ca.scrollTop)-ANCHOFF;
-if(Math.abs(d)>1)ca.scrollBy(0,d)})}
-
-/* 2. 防拖：touchstart 判定一次，touchmove 只读缓存 */
-(function(){
-var can=false;
-function scrollable(t){
-var n=t;
-while(n&&n!==document.body&&n.nodeType===1){
-if(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName))return true;
-var cs;
-try{cs=getComputedStyle(n)}catch(e){return true}
-if((n.scrollHeight>n.clientHeight+1&&/(auto|scroll)/.test(cs.overflowY))||
-(n.scrollWidth>n.clientWidth+1&&/(auto|scroll)/.test(cs.overflowX)))return true;
-n=n.parentElement}
-return false}
-document.addEventListener('touchstart',function(e){
-if(!S.sets.noDrag){can=true;return}
-if(e.touches&&e.touches.length>1){can=true;return}
-can=scrollable(e.target)},{passive:true,capture:true});
-document.addEventListener('touchmove',function(e){
-if(!S.sets.noDrag)return;
-if(can)return;
-if(e.touches&&e.touches.length>1)return;
-e.preventDefault()},{passive:false})})();
-
-/* 3. ResizeObserver 批量处理，一帧只 fixDrift 一次 */
-function initHOB(){
-if(typeof ResizeObserver==='undefined')return;
-HOB=new ResizeObserver(function(es){
-var i,e,el,h;
-for(i=0;i<es.length;i++){
-e=es[i];el=e.target;
-h=Math.round((e.borderBoxSize&&e.borderBoxSize[0]?e.borderBoxSize[0].blockSize:0)||el.offsetHeight);
-if(h>0)el.style.containIntrinsicSize='auto '+h+'px'}
-fixDrift()})}
-
-/* 4. 壳子高度按文字量估，减少滚动条跳动 */
-function mkShell(m,idx){
-if(m.role==='sys'){
-var s=document.createElement('div');
-s.className='sysline';
-s.dataset.i=idx;
-s.textContent=m.text;
-return s}
-var d=document.createElement('div');
-d.className='msg msg-lazy '+(m.role==='user'?'u':'a')+(m.pin?' pinned':'');
-d.dataset.i=idx;
-var tl=String(m.text||'').length;
-var est=46+Math.min(560,Math.ceil(tl/26)*22);
-if(m.ik&&m.ik.length)est+=(m.ik.length===1?210:112);
-if(m.thinking)est+=34;
-d.style.containIntrinsicSize='auto '+est+'px';
-var h='';
-if(m.ik&&m.ik.length)h+='<div class="shell-img">['+m.ik.length+' 张图]</div>';
-else if(m.imgGone)h+='<div class="shell-img">[图片已清理]</div>';
-var pv=String(m.text||'').replace(/\n*\/\/\/+\n*/g,' ').replace(/\s+/g,' ').slice(0,100);
-if(!pv&&m.err)pv='[出错了]';
-if(!pv&&m.ik)pv='[图片]';
-h+='<div class="shell-pv">'+esc(pv||'…')+'</div>';
-d.innerHTML=h;
-if(HYDRATOR)HYDRATOR.observe(d);
-return d}
-
-/* 5. 水合排队：一帧最多两条，且不再反复改 contentVisibility */
-var HYQ=[],HYRUN=0;
-function hyDrain(){
-if(HYRUN)return;
-HYRUN=1;
-requestAnimationFrame(function(){
-HYRUN=0;
-var cv=S.convs[S.cur],n=0;
-while(HYQ.length&&n<2){
-var el=HYQ.shift();
-if(!el||!el.isConnected)continue;
-var idx=parseInt(el.dataset.i);
-if(!cv||!cv.msgs||!cv.msgs[idx])continue;
-var full=mkDOM(cv.msgs[idx],idx,cv);
-if(!full)continue;
-var hOld=el.offsetHeight;
-if(hOld>0)full.style.containIntrinsicSize='auto '+hOld+'px';
-if(ANCH===el)ANCH=full;
-el.replaceWith(full);
-if(HOB){try{HOB.observe(full)}catch(x){}}
-if(IMGOBS)lazyImgsIn(full);
-n++}
-if(HYQ.length)hyDrain()})}
-
-function initHydrator(){
-if(HYDRATOR)return;
-HYDRATOR=new IntersectionObserver(function(entries){
-var i,e;
-for(i=0;i<entries.length;i++){
-e=entries[i];
-if(!e.isIntersecting)continue;
-HYDRATOR.unobserve(e.target);
-HYQ.push(e.target)}
-if(HYQ.length)hyDrain()},{rootMargin:'900px 0px'})}
-
-/* 6. 跳转时先水合目标，不靠 contentVisibility 硬撑 */
-function jumpMsg(cid,idx){
-if(S.convs[cid]&&S.convs[cid].cold){
-toast('正在取回…');
-warmOne(cid).then(function(ok){if(ok){renderCL();jumpMsg(cid,idx)}});
-return}
-if(S.cur!==cid)switchC(cid,true);
-go('chat');
-if(PINSTOP)PINSTOP();
-setTimeout(function(){
-var el=document.querySelector('#msgs [data-i="'+idx+'"]');
-if(!el)return;
-if(el.classList.contains('msg-lazy')){
-var cv=S.convs[S.cur];
-if(cv&&cv.msgs&&cv.msgs[idx]){
-if(HYDRATOR){try{HYDRATOR.unobserve(el)}catch(x){}}
-var full=mkDOM(cv.msgs[idx],idx,cv);
-if(full){
-el.replaceWith(full);
-if(HOB){try{HOB.observe(full)}catch(x){}}
-eagerImgsIn(full);
-el=full}}}
-el.scrollIntoView({block:'center'});
-el.classList.add('jump');
-setTimeout(function(){el.classList.remove('jump')},1800)},300)}
-
-/* 7. 关掉滚动时的 contain 抖动 + 减少重绘 */
-(function(){
-var st=document.createElement('style');
-st.textContent=
-'#ca{will-change:scroll-position;transform:translateZ(0)}'+
-'#msgs{contain:layout style}'+
-'.msg{transition:none}'+
-'.msg.jump{transition:background .4s}'+
-'.bub{contain:content}'+
-'.msg-lazy .shell-pv{contain:strict;height:34px}';
-document.head.appendChild(st)})();
-
-/* 8. 重新挂一次 scroll 监听，去掉旧的直接调用 */
-setTimeout(function(){
-var ca=document.getElementById('ca');
-if(!ca||ca._v183)return;
-ca._v183=1;
+if(ca&&!ca._v18){
+ca._v18=1;
 var tb=document.getElementById('toBot'),q=0;
 ca.addEventListener('scroll',function(){
 if(q)return;
@@ -4517,131 +4425,19 @@ requestAnimationFrame(function(){
 q=0;
 if(tb)tb.classList.toggle('show',
 ca.scrollHeight-ca.scrollTop-ca.clientHeight>320);
-updAnchor()})},{passive:true});
-initHOB();
-if(HYDRATOR){try{HYDRATOR.disconnect()}catch(e){}HYDRATOR=null}
-initHydrator();
-renderMs()},900);
-  
-/* ═══════════ v18.4：水合降本 ═══════════ */
+updAnchor()})},{passive:true})}
 
-/* 1. 折叠判断改成估算，彻底不读 scrollHeight */
-function applyFold(wrap){
-if(!S.sets.fold||!wrap)return;
-var ks=wrap.children,i,b,n,est,btn;
-for(i=0;i<ks.length;i++){
-b=ks[i];
-if(b.dataset.fd)continue;
-n=(b._raw!==undefined)?String(b._raw).length:(b.textContent||'').length;
-est=Math.ceil(n/26)*25+(String(b.innerHTML||'').split('<br>').length-1)*10;
-if(est>430){
-b.classList.add('fold');
-b.dataset.fd='1';
-btn=document.createElement('button');
-btn.className='unfold';
-btn.textContent='展开全文';
-btn.onclick=function(e){
-e.stopPropagation();
-var t=this.previousElementSibling;
-if(t)t.classList.remove('fold');
-this.remove()};
-if(b.parentNode)b.parentNode.insertBefore(btn,b.nextSibling)}
-else{b.dataset.fd='0'}}}
-
-/* 2. mkDOM 里不再 setTimeout 排队，直接同步做完 */
-var _mkOld=mkDOM;
-mkDOM=function(m,idx,cv){
-var d=_mkOld(m,idx,cv);
-if(!d)return d;
-var w=d.querySelector('.bubs');
-if(w)applyFold(w);
-var im=d.querySelectorAll('img'),i;
-for(i=0;i<im.length;i++){
-im[i].decoding='async';
-im[i].loading='lazy'}
-return d};
-
-/* 3. 水合改成 idle 时段做，一次一条 */
-var HYQ2=[],HYT=0;
-var RIC=window.requestIdleCallback||function(f){return setTimeout(function(){
-f({timeRemaining:function(){return 8}})},1)};
-
-function hyStep(dl){
-HYT=0;
-var cv=S.convs[S.cur],el,idx,full,hOld;
-while(HYQ2.length&&(!dl||dl.timeRemaining()>4)){
-el=HYQ2.shift();
-if(!el||!el.isConnected)continue;
-idx=parseInt(el.dataset.i);
-if(!cv||!cv.msgs||!cv.msgs[idx])continue;
-hOld=el.offsetHeight;
-full=mkDOM(cv.msgs[idx],idx,cv);
-if(!full)continue;
-if(hOld>0)full.style.containIntrinsicSize='auto '+hOld+'px';
-if(ANCH===el)ANCH=full;
-el.replaceWith(full);
-if(HOB){try{HOB.observe(full)}catch(x){}}
-if(IMGOBS)lazyImgsIn(full)}
-if(HYQ2.length&&!HYT)HYT=RIC(hyStep)}
-
-function initHydrator(){
-if(HYDRATOR)return;
-HYDRATOR=new IntersectionObserver(function(es){
-var i;
-for(i=0;i<es.length;i++){
-if(!es[i].isIntersecting)continue;
-HYDRATOR.unobserve(es[i].target);
-HYQ2.push(es[i].target)}
-if(HYQ2.length&&!HYT)HYT=RIC(hyStep)},{rootMargin:'1200px 0px'})}
-
-/* 4. 图片解码放到 idle，避免赋值即解码 */
-function initImgObs(){
-if(IMGOBS)return;
-IMGOBS=new IntersectionObserver(function(es){
-var i;
-for(i=0;i<es.length;i++){
-if(!es[i].isIntersecting)continue;
-var im=es[i].target,k=im.getAttribute('data-k');
-IMGOBS.unobserve(im);
-if(!k)continue;
-(function(el,key){
-getImg(key).then(function(d){
-if(!d){
-if(el.parentNode){
-var s=document.createElement('span');
-s.className='imgmiss';
-s.textContent='图片已不在';
-el.parentNode.replaceChild(s,el)}
-return}
-RIC(function(){
-el.decoding='async';
-el.src=d;
-el.removeAttribute('data-k')})})})(im,k)}
-},{rootMargin:'400px 0px'})}
-
-/* 5. md() 缓存：同一段文字只算一次 */
-var MDC=new Map();
-var _mdOld=md;
-md=function(t){
-if(!t)return'';
-var s=String(t);
-if(s.length>2400)return _mdOld(s);
-var hit=MDC.get(s);
-if(hit!==undefined)return hit;
-var out=_mdOld(s);
-MDC.set(s,out);
-if(MDC.size>700){
-var it=MDC.keys(),i;
-for(i=0;i<200;i++){var k=it.next();if(k.done)break;MDC.delete(k.value)}}
-return out};
-
-/* 6. 重挂观察器 */
-setTimeout(function(){
 if(HYDRATOR){try{HYDRATOR.disconnect()}catch(e){}HYDRATOR=null}
 if(IMGOBS){try{IMGOBS.disconnect()}catch(e){}IMGOBS=null}
-HYQ2=[];HYT=0;
-initHydrator();initImgObs();
-renderMs()},300);
+HYQ=[];HYT=0;
+initHydrator();initImgObs();initHOB();
+rUs();rMems();rDiary();renderMs()},500);
+
+if(!localStorage.getItem('fw_tipclean')){
+setTimeout(function(){
+var n=stripTips();
+try{localStorage.setItem('fw_tipclean','1')}catch(e){}
+if(n)toast('清掉了 '+n+' 条写进历史的工具提示')},1500)}
 </script>
 </body>
 </html>
