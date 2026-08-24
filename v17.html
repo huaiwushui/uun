@@ -4522,6 +4522,126 @@ initHOB();
 if(HYDRATOR){try{HYDRATOR.disconnect()}catch(e){}HYDRATOR=null}
 initHydrator();
 renderMs()},900);
+  
+/* ═══════════ v18.4：水合降本 ═══════════ */
+
+/* 1. 折叠判断改成估算，彻底不读 scrollHeight */
+function applyFold(wrap){
+if(!S.sets.fold||!wrap)return;
+var ks=wrap.children,i,b,n,est,btn;
+for(i=0;i<ks.length;i++){
+b=ks[i];
+if(b.dataset.fd)continue;
+n=(b._raw!==undefined)?String(b._raw).length:(b.textContent||'').length;
+est=Math.ceil(n/26)*25+(String(b.innerHTML||'').split('<br>').length-1)*10;
+if(est>430){
+b.classList.add('fold');
+b.dataset.fd='1';
+btn=document.createElement('button');
+btn.className='unfold';
+btn.textContent='展开全文';
+btn.onclick=function(e){
+e.stopPropagation();
+var t=this.previousElementSibling;
+if(t)t.classList.remove('fold');
+this.remove()};
+if(b.parentNode)b.parentNode.insertBefore(btn,b.nextSibling)}
+else{b.dataset.fd='0'}}}
+
+/* 2. mkDOM 里不再 setTimeout 排队，直接同步做完 */
+var _mkOld=mkDOM;
+mkDOM=function(m,idx,cv){
+var d=_mkOld(m,idx,cv);
+if(!d)return d;
+var w=d.querySelector('.bubs');
+if(w)applyFold(w);
+var im=d.querySelectorAll('img'),i;
+for(i=0;i<im.length;i++){
+im[i].decoding='async';
+im[i].loading='lazy'}
+return d};
+
+/* 3. 水合改成 idle 时段做，一次一条 */
+var HYQ2=[],HYT=0;
+var RIC=window.requestIdleCallback||function(f){return setTimeout(function(){
+f({timeRemaining:function(){return 8}})},1)};
+
+function hyStep(dl){
+HYT=0;
+var cv=S.convs[S.cur],el,idx,full,hOld;
+while(HYQ2.length&&(!dl||dl.timeRemaining()>4)){
+el=HYQ2.shift();
+if(!el||!el.isConnected)continue;
+idx=parseInt(el.dataset.i);
+if(!cv||!cv.msgs||!cv.msgs[idx])continue;
+hOld=el.offsetHeight;
+full=mkDOM(cv.msgs[idx],idx,cv);
+if(!full)continue;
+if(hOld>0)full.style.containIntrinsicSize='auto '+hOld+'px';
+if(ANCH===el)ANCH=full;
+el.replaceWith(full);
+if(HOB){try{HOB.observe(full)}catch(x){}}
+if(IMGOBS)lazyImgsIn(full)}
+if(HYQ2.length&&!HYT)HYT=RIC(hyStep)}
+
+function initHydrator(){
+if(HYDRATOR)return;
+HYDRATOR=new IntersectionObserver(function(es){
+var i;
+for(i=0;i<es.length;i++){
+if(!es[i].isIntersecting)continue;
+HYDRATOR.unobserve(es[i].target);
+HYQ2.push(es[i].target)}
+if(HYQ2.length&&!HYT)HYT=RIC(hyStep)},{rootMargin:'1200px 0px'})}
+
+/* 4. 图片解码放到 idle，避免赋值即解码 */
+function initImgObs(){
+if(IMGOBS)return;
+IMGOBS=new IntersectionObserver(function(es){
+var i;
+for(i=0;i<es.length;i++){
+if(!es[i].isIntersecting)continue;
+var im=es[i].target,k=im.getAttribute('data-k');
+IMGOBS.unobserve(im);
+if(!k)continue;
+(function(el,key){
+getImg(key).then(function(d){
+if(!d){
+if(el.parentNode){
+var s=document.createElement('span');
+s.className='imgmiss';
+s.textContent='图片已不在';
+el.parentNode.replaceChild(s,el)}
+return}
+RIC(function(){
+el.decoding='async';
+el.src=d;
+el.removeAttribute('data-k')})})})(im,k)}
+},{rootMargin:'400px 0px'})}
+
+/* 5. md() 缓存：同一段文字只算一次 */
+var MDC=new Map();
+var _mdOld=md;
+md=function(t){
+if(!t)return'';
+var s=String(t);
+if(s.length>2400)return _mdOld(s);
+var hit=MDC.get(s);
+if(hit!==undefined)return hit;
+var out=_mdOld(s);
+MDC.set(s,out);
+if(MDC.size>700){
+var it=MDC.keys(),i;
+for(i=0;i<200;i++){var k=it.next();if(k.done)break;MDC.delete(k.value)}}
+return out};
+
+/* 6. 重挂观察器 */
+setTimeout(function(){
+if(HYDRATOR){try{HYDRATOR.disconnect()}catch(e){}HYDRATOR=null}
+if(IMGOBS){try{IMGOBS.disconnect()}catch(e){}IMGOBS=null}
+HYQ2=[];HYT=0;
+initHydrator();initImgObs();
+renderMs()},300);
 </script>
 </body>
 </html>
