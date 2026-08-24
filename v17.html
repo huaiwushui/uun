@@ -3610,498 +3610,138 @@ if(a){
 a.setAttribute('onclick','openFixMenu()');
 a.innerHTML='<span class="lv">检查并修复</span><span class="rv" id="fixTag"></span><span class="cv">›</span>'}
 refreshSetList()},500);
-  /* ═══════════ v17.10：自建联网 · Jina Search/Reader ═══════════ */
 
+/* ═══════════ v17.10 联网 · 合并版 ═══════════ */
 if(S.sets.jinaKey===undefined)S.sets.jinaKey='';
 
-var _btf9=buildToolsField;
+var _btfW=buildToolsField;
 buildToolsField=function(){
-var t=_btf9();
-if(!t)t=[];
-
-var out=[],i;
-
+var t=_btfW()||[],out=[],i;
 for(i=0;i<t.length;i++){
 if(t[i].type)continue;
 if(t[i].cache_control)delete t[i].cache_control;
-out.push(t[i]);
-}
-
+out.push(t[i])}
 if(S.sets.web){
-
-out.push({
-name:'web_lookup',
-description:'上网搜索互联网。用于外部世界的信息：新闻、天气、实时信息、某个东西是什么、查证一个说法、查找资料。返回网页搜索结果。这不是搜索自己的记忆——自己的记录使用 search。',
-input_schema:{
-type:'object',
-properties:{
-query:{
-type:'string',
-description:'搜索词，像在搜索引擎里输入一样。需要实时信息时优先搜索。'
-}
-},
-required:['query']
-}
-});
-
-out.push({
-name:'web_open',
-description:'打开一个具体网址并读取网页正文。当搜索结果中有值得深入阅读的网页时使用。',
-input_schema:{
-type:'object',
-properties:{
-url:{
-type:'string',
-description:'要打开的网址，例如 https://example.com'
-}
-},
-required:['url']
-}
-});
-}
-
+out.push({name:'web_lookup',description:'上网搜索。用于外部世界的信息：新闻、天气、实时情况、某个东西是什么、查证一个说法。返回网页正文摘要。搜你们自己的记录不要用这个，用 search。',input_schema:{type:'object',properties:{query:{type:'string',description:'搜索词，像在搜索引擎里输入那样'}},required:['query']}});
+out.push({name:'web_open',description:'打开一个具体网址，读它的正文。搜索结果里有值得细看的页面时用。',input_schema:{type:'object',properties:{url:{type:'string'}},required:['url']}})}
 if(!out.length)return null;
-
-if(S.sets.cache)
-out[out.length-1].cache_control={type:'ephemeral'};
-
-return out;
-};
-
-
-/* ═══════════ Jina HTTP 请求 ═══════════ */
+if(S.sets.cache)out[out.length-1].cache_control={type:'ephemeral'};
+return out};
 
 async function webFetch(u,hdr,ms){
-
 var ac=new AbortController();
-
-var to=setTimeout(function(){
-try{ac.abort()}catch(e){}
-},ms||30000);
-
+var to=setTimeout(function(){try{ac.abort()}catch(e){}},ms||40000);
 try{
-
-var r=await fetch(u,{
-headers:hdr||{},
-signal:ac.signal
-});
-
+var r=await fetch(u,{headers:hdr||{},signal:ac.signal});
 var txt=await r.text();
-
 clearTimeout(to);
-
-if(!r.ok)
-return{
-ok:false,
-t:'HTTP '+r.status+'　'+String(txt).slice(0,500)
-};
-
-return{
-ok:true,
-t:txt
-};
-
-}catch(e){
-
+if(!r.ok)return{ok:false,t:'HTTP '+r.status+'　'+String(txt).slice(0,300)};
+return{ok:true,t:txt}}
+catch(e){
 clearTimeout(to);
+return{ok:false,t:String((e&&e.message)||e)}}}
 
-return{
-ok:false,
-t:String((e&&e.message)||e)
-};
-
-}
-}
-
-
-/* ═══════════ 工具执行 ═══════════ */
-
-var _eta9=execToolAsync;
-
-execToolAsync=async function(n,i){
-
-/* ─────────── Jina Search ─────────── */
-
-if(n==='web_lookup'){
-
-var q=String((i&&i.query)||'').trim();
-
-if(!q)
-return'失败：没给搜索词';
-
-var h={
-'Accept':'text/plain',
-'X-Respond-With':'no-content'
-};
-
-if(S.sets.jinaKey)
-h['Authorization']='Bearer '+S.sets.jinaKey;
-
-
-/*
- * Jina Search
- *
- * 正确形式：
- * https://s.jina.ai/?q=搜索词
- *
- * 不要写成：
- * https://s.jina.ai/搜索词
- */
-
-var searchUrl=
-'https://s.jina.ai/?q='+encodeURIComponent(q);
-
-var r=await webFetch(
-searchUrl,
-h,
-30000
-);
-
-if(!r.ok){
-
-return'[网页] 搜索失败：'+r.t+
-'\n\n跟她说一句没搜到，不要编。';
-
-}
-
-var t=String(r.t)
-.replace(/\n{3,}/g,'\n\n')
-.trim();
-
-
-if(!t){
-
-return'[网页] 搜索没有返回有效结果。'
-+'\n\n跟她说没有搜到，不要编。';
-
-}
-
-
-/*
- * 控制返回给模型的搜索结果长度
- */
-
-if(t.length>5000)
-t=t.slice(0,5000)
-+'\n…（搜索结果较长，后面内容已截断）';
-
-
-return'[网页] 搜「'+q+'」搜到：\n\n'
-+t
-+'\n\n———\n'
-+'挑出真正有用的信息，用自己的话回答。'
-+'不要机械念搜索结果。'
-+'如果搜索结果不足以确认答案，就明确说不确定。';
-
-}
-
-
-/* ─────────── Jina Reader ─────────── */
-
-if(n==='web_open'){
-
-var u=String((i&&i.url)||'').trim();
-
-if(!u)
-return'失败：没给网址';
-
-if(u.indexOf('http')!==0)
-u='https://'+u;
-
-var h2={
-'Accept':'text/plain'
-};
-
-if(S.sets.jinaKey)
-h2['Authorization']='Bearer '+S.sets.jinaKey;
-
-
-/*
- * Jina Reader
- *
- * 读取指定网页：
- * https://r.jina.ai/网页地址
- */
-
-var readerUrl=
-'https://r.jina.ai/'+u;
-
-var r2=await webFetch(
-readerUrl,
-h2,
-30000
-);
-
-if(!r2.ok)
-return'[网页] 打不开：'+r2.t;
-
-var t2=String(r2.t)
-.replace(/\n{3,}/g,'\n\n')
-.trim();
-
-if(!t2)
-return'[网页] 页面没有返回有效正文。';
-
-if(t2.length>5000)
-t2=t2.slice(0,5000)
-+'\n…（网页正文较长，后面内容已截断）';
-
-return'[网页] '+u+' 的正文：\n\n'+t2;
-
-}
-
-
-/* 其他工具交给原来的执行器 */
-
-return _eta9(n,i);
-
-};
-
-
-/* ═══════════ 工具状态文字 ═══════════ */
-
-var _tl9=toolLabel;
-
-toolLabel=function(n){
-
-if(n==='web_lookup')
-return'上网搜了搜';
-
-if(n==='web_open')
-return'打开了一个网页';
-
-return _tl9(n);
-
-};
-
-
-/* ═══════════ API Message 处理 ═══════════ */
-
-var _bam9=buildApiMs;
-
-buildApiMs=function(cv){
-
-var out=_bam9(cv);
-
-var stop=Math.max(0,out.length-3),
-i,j,m,b;
-
-for(i=0;i<stop;i++){
-
-m=out[i];
-
-if(m.role!=='user'||!Array.isArray(m.content))
-continue;
-
-if(!m.content[0]||m.content[0].type!=='tool_result')
-continue;
-
-var ch=false,
-nc=[];
-
-for(j=0;j<m.content.length;j++){
-
-b=m.content[j];
-
-if(
-b.type==='tool_result'&&
-typeof b.content==='string'&&
-b.content.indexOf('[网页]')===0
-){
-
-nc.push({
-type:'tool_result',
-tool_use_id:b.tool_use_id,
-content:
-b.content.slice(0,50)
-.replace(/\n/g,' ')
-+'…（网页内容已折叠，要看就再搜一次）'
-});
-
-ch=true;
-
-}else{
-
-nc.push(b);
-
-}
-
-}
-
-if(ch)
-out[i]={
-role:'user',
-content:nc
-};
-
-}
-
-return out;
-
-};
-
-
-/* ═══════════ 系统提示 ═══════════ */
-
-var _bs9=buildStatic;
-
-buildStatic=function(){
-
-var s=_bs9();
-
-var p=s.indexOf('[上网]');
-
-if(p>=0)
-s=s.slice(0,p).replace(/\s+$/,'');
-
-if(!S.sets.web)
-return s;
-
-var L=[];
-
-L.push('[上网]');
-
-L.push(
-'web_lookup 会搜索互联网，'
-+'web_open 会打开并读取具体网页。'
-);
-
-L.push('');
-
-L.push('分清两件事：');
-
-L.push(
-'关于她、关于你们之间、自己的历史记录 → search，搜索自己的库。'
-);
-
-L.push(
-'关于外部世界、新闻、天气、实时信息、查证说法 → web_lookup。'
-);
-
-L.push('');
-
-L.push(
-'搜索结果可能包含多个网页和摘要。'
-);
-
-L.push(
-'先判断搜索结果是否真正回答问题。'
-);
-
-L.push(
-'需要查看某个网页详细内容时使用 web_open。'
-);
-
-L.push(
-'不要机械念标题列表，不要无依据补全搜索结果。'
-);
-
-L.push(
-'如果搜索不到或资料不足，就明确说搜不到或无法确认。'
-);
-
-return s+'\n\n'+L.join('\n');
-
-};
-
-
-/* ═══════════ 读取 Jina Key ═══════════ */
-
-var _ls9=loadSU;
-
-loadSU=function(){
-
-_ls9();
-
-var e=document.getElementById('sjk');
-
-if(e)
-e.value=S.sets.jinaKey||'';
-
-};
-
-
-/* ═══════════ 保存 Jina Key ═══════════ */
-
-var _ss9=saveS;
-
-saveS=function(){
-
-var e=document.getElementById('sjk');
-
-if(e)
-S.sets.jinaKey=e.value.trim();
-
-_ss9();
-
-};
-
-
-/* ═══════════ 设置界面 ═══════════ */
-
-setTimeout(function(){
-
-var mx=document.getElementById('swbm');
-
-if(mx&&mx.parentElement){
-
-mx.parentElement.innerHTML=
-'<label>Jina API Key</label>'+
-'<input type="password" id="sjk" placeholder="jina_...">'+
-'<div class="hint">'+
-'用于 Jina 网络搜索和网页读取。'+
-'不填也可以尝试使用，但会受到更严格的速率限制。'+
-'</div>';
-
-}
-
-var sw=document.getElementById('swb');
-
-if(
-sw&&
-sw.parentElement&&
-sw.parentElement.nextElementSibling
-){
-
-var d=sw.parentElement.nextElementSibling;
-
-if(d.className==='trd'){
-
-d.innerHTML=
-'使用 jina.ai 搜索互联网并读取网页。'+
-'<b>请求从你的设备直接发送到 Jina，不经过 API 中转。</b>';
-
-}
-
-}
-
-loadSU();
-
-},900);
-  
-/* ═══════════ v17.11：让搜索结果变厚 ═══════════ */
-var _eta11=execToolAsync;
-execToolAsync=async function(n,i){
-if(n!=='web_lookup')return _eta11(n,i);
-var q=String((i&&i.query)||'').trim();
-if(!q)return'失败：没给搜索词';
+function jinaHead(){
 var h={'Accept':'text/plain'};
 if(S.sets.jinaKey)h['Authorization']='Bearer '+S.sets.jinaKey;
-var url='https://s.jina.ai/?q='+encodeURIComponent(q);
-var r=await webFetch(url,h,40000);
-if(!r.ok&&String(r.t).indexOf('429')>=0){
-await sleep(3000);
-r=await webFetch(url,h,40000)}
-if(!r.ok){
-var hint='';
-if(String(r.t).indexOf('429')>=0)hint='\n（被限速了。去设置里填 Jina Key 能大幅提额。）';
-if(String(r.t).indexOf('401')>=0||String(r.t).indexOf('402')>=0)hint='\n（Key 无效或额度用完了。）';
-return'[网页] 搜索失败：'+r.t+hint+'\n\n告诉她这次是搜索本身失败了，不是查不到。别编内容。'}
+return h}
+
+function webHint(t){
+var s=String(t);
+if(s.indexOf('429')>=0)return'\n（被限速了。设置里填 Jina Key 能大幅提额。）';
+if(s.indexOf('401')>=0||s.indexOf('402')>=0)return'\n（Key 无效或额度用完了。）';
+if(s.indexOf('abort')>=0)return'\n（超时了。）';
+return''}
+
+var _etaW=execToolAsync;
+execToolAsync=async function(n,i){
+if(n==='web_lookup'){
+var q=String((i&&i.query)||'').trim();
+if(!q)return'失败：没给搜索词';
+var u='https://s.jina.ai/?q='+encodeURIComponent(q);
+var r=await webFetch(u,jinaHead(),40000);
+if(!r.ok&&String(r.t).indexOf('429')>=0){await sleep(3000);r=await webFetch(u,jinaHead(),40000)}
+if(!r.ok)return'[网页] 搜索失败：'+r.t+webHint(r.t)+'\n\n告诉她这次是搜索本身失败了，不是查不到。别编内容。';
 var t=String(r.t).replace(/\n{3,}/g,'\n\n').trim();
 if(!t)return'[网页] 返回是空的。告诉她没搜到，别编。';
-if(t.length>7000)t=t.slice(0,7000)+'\n…（还有更多。需要细节就 web_open 点进最相关那个链接）';
-return'[网页] 搜「'+q+'」：\n\n'+t+
-'\n\n———\n用自己的话回答。信息不够就 web_open 点进最相关的链接看正文。确实查不到就直接说查不到。'};
+if(t.length>7000)t=t.slice(0,7000)+'\n…（还有更多。要细节就 web_open 点进最相关那个链接）';
+return'[网页] 搜「'+q+'」：\n\n'+t+'\n\n———\n用自己的话回答。信息不够就 web_open 点进最相关的链接。确实查不到就直接说查不到。'}
+if(n==='web_open'){
+var u2=String((i&&i.url)||'').trim();
+if(!u2)return'失败：没给网址';
+if(u2.indexOf('http')!==0)u2='https://'+u2;
+var r2=await webFetch('https://r.jina.ai/'+u2,jinaHead(),40000);
+if(!r2.ok)return'[网页] 打不开：'+r2.t+webHint(r2.t);
+var t2=String(r2.t).replace(/\n{3,}/g,'\n\n').trim();
+if(!t2)return'[网页] 这一页没有正文。';
+if(t2.length>7000)t2=t2.slice(0,7000)+'\n…（后面截断了）';
+return'[网页] '+u2+' 的正文：\n\n'+t2}
+return _etaW(n,i)};
+
+var _tlW=toolLabel;
+toolLabel=function(n){
+if(n==='web_lookup')return'上网搜了搜';
+if(n==='web_open')return'打开了一个网页';
+return _tlW(n)};
+
+var _bamW=buildApiMs;
+buildApiMs=function(cv){
+var out=_bamW(cv),stop=Math.max(0,out.length-3),i,j,m,b;
+for(i=0;i<stop;i++){
+m=out[i];
+if(m.role!=='user'||!Array.isArray(m.content))continue;
+if(!m.content[0]||m.content[0].type!=='tool_result')continue;
+var ch=false,nc=[];
+for(j=0;j<m.content.length;j++){
+b=m.content[j];
+if(b.type==='tool_result'&&typeof b.content==='string'&&b.content.indexOf('[网页]')===0){
+nc.push({type:'tool_result',tool_use_id:b.tool_use_id,content:b.content.slice(0,50).replace(/\n/g,' ')+'…（网页内容已折叠，要看就再搜一次）'});
+ch=true}
+else{nc.push(b)}}
+if(ch)out[i]={role:'user',content:nc}}
+return out};
+
+var _bsW=buildStatic;
+buildStatic=function(){
+var s=_bsW(),p=s.indexOf('[上网]');
+if(p>=0)s=s.slice(0,p).replace(/\s+$/,'');
+if(!S.sets.web)return s;
+var L=[];
+L.push('[上网]');
+L.push('web_lookup 真的会去搜网页，web_open 读一个具体网址。');
+L.push('');
+L.push('分清两件事：');
+L.push('关于她、关于你们之间 → search，翻自己的库。');
+L.push('关于外面的世界（新闻、天气、某物是什么、查证说法）→ web_lookup。');
+L.push('');
+L.push('搜回来的是原始网页，很乱。');
+L.push('挑出真正回答问题的那部分，用自己的话讲。');
+L.push('不要念标题列表，不要贴一串链接。');
+L.push('信息不够就 web_open 点进最相关的那一个。');
+L.push('搜不到就说搜不到，别编。');
+return s+'\n\n'+L.join('\n')};
+
+var _lsW=loadSU;
+loadSU=function(){
+_lsW();
+var e=document.getElementById('sjk');
+if(e)e.value=S.sets.jinaKey||''};
+
+var _ssW=saveS;
+saveS=function(){
+var e=document.getElementById('sjk');
+if(e)S.sets.jinaKey=e.value.trim();
+_ssW()};
+
+setTimeout(function(){
+var mx=document.getElementById('swbm');
+if(mx&&mx.parentElement){
+mx.parentElement.innerHTML='<label>Jina API Key</label><input type="password" id="sjk" placeholder="jina_..."><div class="hint">不填也能用，但限速很紧、容易 429。去 jina.ai 免费领一个。</div>'}
+var sw=document.getElementById('swb');
+if(sw&&sw.parentElement&&sw.parentElement.nextElementSibling){
+var d=sw.parentElement.nextElementSibling;
+if(d.className==='trd')d.innerHTML='走 jina.ai 抓网页，绕开中转对官方 web_search 的过滤。<b>请求从你手机直接发出去</b>，不经过 API 中转。'}
+loadSU()},900);
 </script>
 </body>
 </html>
