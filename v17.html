@@ -3477,6 +3477,139 @@ setTimeout(function(){
 var n=stripTips();
 try{localStorage.setItem('fw_tipclean','1')}catch(e){}
 if(n)toast('清掉了 '+n+' 条写进历史的工具提示')},1500)}
+  
+/* ═══════════ v17.8：联网搜索 + 维护合并 ═══════════ */
+
+if(S.sets.web===undefined)S.sets.web=false;
+if(!S.sets.webMax)S.sets.webMax=5;
+TOGGLES.push(['swb','web']);
+
+/* ── 工具定义 ── */
+var _btf8=buildToolsField;
+buildToolsField=function(){
+var t=_btf8();
+if(!S.sets.web)return t;
+if(!t)t=[];
+var mx=parseInt(S.sets.webMax);
+if(isNaN(mx)||mx<1)mx=5;
+if(mx>20)mx=20;
+t.push({type:'web_search_20250305',name:'web_search',max_uses:mx});
+return t};
+
+/* ── 剥掉服务端搜索块，顺手记下搜了什么 ── */
+var _cb8=cleanBlocks;
+cleanBlocks=function(bs){
+if(Array.isArray(bs)){
+var keep=[],i,b,qq,cv,lm,host,te;
+for(i=0;i<bs.length;i++){
+b=bs[i];
+if(!b||!b.type)continue;
+if(b.type==='server_tool_use'){
+qq=(b.input&&b.input.query)?String(b.input.query):'';
+if(qq){
+cv=S.convs[S.cur];
+if(cv&&cv.msgs&&cv.msgs.length){
+lm=cv.msgs[cv.msgs.length-1];
+if(lm&&lm.role==='assistant'&&!lm.err){
+if(!lm.tools)lm.tools=[];
+lm.tools.push('上网查了「'+qq+'」')}}
+host=document.querySelector('#msgs .msg.a.live');
+if(host){
+te=document.createElement('div');
+te.className='ts';
+te.style.opacity='.7';
+te.textContent='· 上网查了「'+qq+'」';
+host.appendChild(te)}}
+continue}
+if(b.type==='web_search_tool_result')continue;
+keep.push(b)}
+bs=keep}
+return _cb8(bs)};
+
+/* ── 告诉他什么时候该上网 ── */
+var _bs8=buildStatic;
+buildStatic=function(){
+var s=_bs8();
+if(!S.sets.web)return s;
+var L=[];
+L.push('[上网]');
+L.push('你有 web_search，能真的去搜网页。');
+L.push('');
+L.push('分清两件事：');
+L.push('关于她、关于你们之间的事 → 用 search 翻自己的库。');
+L.push('关于外面的世界（新闻、天气、某个东西是什么、查证一个说法）→ 用 web_search。');
+L.push('');
+L.push('不确定的事实别硬编，宁可搜一下。');
+L.push('搜完把结论说出来，不要念搜索结果。');
+return s+'\n\n'+L.join('\n')};
+
+/* ── 设置项 ── */
+var _ls8=loadSU;
+loadSU=function(){
+_ls8();
+var e=document.getElementById('swbm');
+if(e)e.value=S.sets.webMax||5};
+
+var _ss8=saveS;
+saveS=function(){
+var e=document.getElementById('swbm');
+if(e){
+var v=parseInt(e.value);
+if(!isNaN(v)&&v>0)S.sets.webMax=Math.min(20,v)}
+_ss8()};
+
+/* ── 维护合并 ── */
+function openFixMenu(){
+var cv=S.convs[S.cur];
+var ck=cv?alignCheck(cv):null;
+var bad=0;
+Object.keys(S.convs).forEach(function(id){
+var c=S.convs[id];
+if(!c||c.cold||!c.api)return;
+var k=alignCheck(c);
+if(k&&!k.ok)bad++});
+var h='';
+h+='<button class="ami" onclick="closeAm();fixConv()">修复当前对话'+(ck?(ck.ok?'（正常）':'（错位 '+ck.m+'/'+ck.a+'）'):'')+'</button>';
+h+='<button class="ami" onclick="closeAm();fixAll()">扫描并修复全部'+(bad?('（'+bad+' 个错位）'):'')+'</button>';
+h+='<button class="ami'+(ck&&!ck.ok?' dan':'')+'" onclick="closeAm();deepAlign()">深度对齐当前对话</button>';
+h+='<button class="ami" onclick="closeAm()">取消</button>';
+document.getElementById('amSheet').innerHTML=h;
+document.getElementById('am').classList.add('show')}
+
+var _rsl8=refreshSetList;
+refreshSetList=function(){
+_rsl8();
+var el=document.getElementById('fixTag');
+if(!el)return;
+var bad=0;
+Object.keys(S.convs).forEach(function(id){
+var c=S.convs[id];
+if(!c||c.cold||!c.api)return;
+var k=alignCheck(c);
+if(k&&!k.ok)bad++});
+el.textContent=bad?(bad+' 个错位'):'正常'};
+
+setTimeout(function(){
+var box=document.querySelector('#subApi .body-scroll');
+if(box&&!document.getElementById('swb')){
+var d=document.createElement('div');
+d.innerHTML='<div class="gtitle" style="margin-top:6px">联网</div>'+
+'<div class="tr"><label>允许他上网搜</label><div class="tg" id="swb" onclick="this.classList.toggle(\'on\')"></div></div>'+
+'<div class="trd">用 Anthropic 官方的 web_search，搜索在服务端跑。<b>中转不一定支持</b>，开了之后如果报 400 就关掉。</div>'+
+'<div class="fld"><label>每轮最多搜几次</label><input type="number" id="swbm" value="5"><div class="hint">按次计费，别开太大</div></div>';
+box.appendChild(d);
+loadSU()}
+var rows=document.querySelectorAll('#setView .lgroup .lrow');
+var a=null,b=null,i,tx;
+for(i=0;i<rows.length;i++){
+tx=rows[i].textContent||'';
+if(tx.indexOf('修复当前对话')>=0)a=rows[i];
+if(tx.indexOf('修复全部对话')>=0)b=rows[i]}
+if(b)b.remove();
+if(a){
+a.setAttribute('onclick','openFixMenu()');
+a.innerHTML='<span class="lv">检查并修复</span><span class="rv" id="fixTag"></span><span class="cv">›</span>'}
+refreshSetList()},500);
 </script>
 </body>
 </html>
